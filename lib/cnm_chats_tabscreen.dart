@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/chat_messaging_screen.dart';
 import 'package:my_app/model/chat_model.dart';
@@ -98,7 +97,7 @@ class StatusBar extends StatelessWidget {
                     ),
                     child: CircleAvatar(
                       radius: 35,
-                      backgroundImage: CachedNetworkImageProvider(chat.imgPath),
+                      backgroundImage: NetworkImage(chat.imgPath),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -143,7 +142,7 @@ class ChatListItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: CircleAvatar(
           radius: 30,
-          backgroundImage: CachedNetworkImageProvider(chat.imgPath),
+          backgroundImage: NetworkImage(chat.imgPath),
         ),
       ),
       title: Text(chat.name,

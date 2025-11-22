@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_app/model/panggilan.dart';
 
 class AboutSearches extends StatefulWidget {
   const AboutSearches({super.key});
@@ -36,17 +37,21 @@ class _AboutSearchesState extends State<AboutSearches> {
     });
 
     // Simulate a network request
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final results = panggilanItems
+        .where((panggilan) =>
+            panggilan.nama.toLowerCase().contains(query.toLowerCase()))
+        .toList();
 
     setState(() {
-      // Mock search results
-      _searchResults = List.generate(
-        10,
-        (index) => {
-          'name': '$query result $index',
-          'description': 'This is a mock description for result $index',
-        },
-      );
+      _searchResults = results
+          .map((panggilan) => {
+                'name': panggilan.nama,
+                'description': panggilan.subtitle,
+                'image': panggilan.image,
+              })
+          .toList();
       _isLoading = false;
     });
   }
@@ -189,9 +194,9 @@ class _AboutSearchesState extends State<AboutSearches> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
+                  children: [
                     Text(
                       'Settings',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -356,6 +361,9 @@ class _AboutSearchesState extends State<AboutSearches> {
               (context, index) {
                 final hit = _searchResults[index];
                 return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: NetworkImage(hit['image'] ?? ''),
+                  ),
                   title: Text(hit['name'] ?? 'No name'),
                   subtitle: Text(hit['description'] ?? ''),
                 );

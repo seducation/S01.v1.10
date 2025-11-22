@@ -1,10 +1,13 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' hide Row;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'webview_screen.dart';
 
 class LensScreen extends StatefulWidget {
   const LensScreen({super.key});
@@ -118,6 +121,8 @@ class _LensScreenState extends State<LensScreen> {
       return;
     }
 
+    final link = await _showLinkDialog();
+
     setState(() {
       _isLoading = true;
     });
@@ -141,6 +146,7 @@ class _LensScreenState extends State<LensScreen> {
           'title': 'New Image',
           'description': 'A beautiful new image',
           'imageUrl': imageUrl,
+          'link': link,
         },
       );
 
@@ -156,6 +162,51 @@ class _LensScreenState extends State<LensScreen> {
       });
     }
   }
+
+    Future<String?> _showLinkDialog() async {
+    final TextEditingController controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add a link (optional)'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: "https://example.com"),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: const Text('Upload'),
+            onPressed: () => Navigator.of(context).pop(controller.text),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    if (kIsWeb) {
+      final Uri url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $urlString')),
+        );
+      }
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => WebViewScreen(url: urlString),
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -183,13 +234,13 @@ class _LensScreenState extends State<LensScreen> {
           SliverToBoxAdapter(
             child: GestureDetector(
               onTap: _uploadImage,
-              child: Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: const Card(
+                margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Icon(Icons.camera_alt_outlined),
                       SizedBox(width: 8),
                       Text('Camera'),
@@ -225,44 +276,55 @@ class _LensScreenState extends State<LensScreen> {
                 (context, index) {
                   final item = _items[index];
                   final isBigTile = (index % 3) == 0;
-                  return Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (item.data['imageUrl'] != null)
-                          Expanded(
-                            child: CachedNetworkImage(
-                              imageUrl: item.data['imageUrl'],
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) =>
-                                  const Center(child: CircularProgressIndicator()),
-                              errorWidget: (context, url, error) =>
-                                  const Icon(Icons.error),
+                  return GestureDetector(
+                     onTap: () {
+                      final link = item.data['link'];
+                      if (link != null && link.isNotEmpty) {
+                        _launchUrl(link);
+                      }
+                    },
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (item.data['imageUrl'] != null)
+                            Expanded(
+                              child: Image.network(
+                                item.data['imageUrl'],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(child: CircularProgressIndicator());
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.error);
+                                },
+                              ),
                             ),
-                          ),
-                        if (item.data['title'] != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              item.data['title'],
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          if (item.data['title'] != null)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                item.data['title'],
+                                style:
+                                    const TextStyle(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        if (item.data['description'] != null && !isBigTile)
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(
-                              item.data['description'],
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                          if (item.data['description'] != null && !isBigTile)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Text(
+                                item.data['description'],
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },

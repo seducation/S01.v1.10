@@ -23,7 +23,7 @@ class MockAuthService extends AuthService {
 }
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Loads Home Screen UI test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       MultiProvider(
@@ -38,16 +38,12 @@ void main() {
       ),
     );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that the initial tabs are present.
+    expect(find.text('shorts'), findsOneWidget);
+    expect(find.text('feature'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byType(FloatingActionButton));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the search and add icons are present in the app bar.
+    expect(find.descendant(of: find.byType(AppBar), matching: find.byIcon(Icons.search)), findsOneWidget);
+    expect(find.descendant(of: find.byType(AppBar), matching: find.byIcon(Icons.add)), findsOneWidget);
   });
 }

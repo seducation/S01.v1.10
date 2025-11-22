@@ -48,12 +48,12 @@ class _CreateRowDialogState extends State<CreateRowDialog> {
             const Divider(height: 1),
 
             // --- Scrollable Form Content ---
-            Flexible(
+            const Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     // Input fields using the custom widget
                     CustomNullTextField(
                       label: "user id",
