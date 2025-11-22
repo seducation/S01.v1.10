@@ -1,0 +1,41 @@
+name: my_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  cupertino_icons: ^1.0.6
+  algoliasearch: any
+  appwrite: ^20.3.1
+  cached_network_image: ^3.4.1
+  flutter:
+    sdk: flutter
+  flutter_staggered_grid_view: any
+  font_awesome_flutter: any
+  go_router: any
+  google_fonts: any
+  intl: any
+  provider: any
+  shimmer: ^3.0.0
+  image_picker: ^1.0.0
+  flutter_bloc: ^9.1.1
+  get_it: ^9.0.5
+  equatable: ^2.0.7
+  shared_preferences: ^2.5.3
+  flutter_web_auth_2: ^4.1.0
+  retry: ^3.1.2
+  smooth_page_indicator: ^1.1.0
+  file_picker: ^10.3.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
