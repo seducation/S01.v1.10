@@ -34,7 +34,7 @@ class _CreateRowDialogState extends State<CreateRowDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Create row",
+                    "Create account",
                     style: theme.textTheme.titleLarge,
                   ),
                   IconButton(
