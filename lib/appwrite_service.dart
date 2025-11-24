@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'poster_item.dart';
+import 'community_screen_widget/poster_item.dart';
 
 class AppwriteService {
   final Client _client = Client();

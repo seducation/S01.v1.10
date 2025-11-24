@@ -1,10 +1,9 @@
-
 import 'package:flutter/material.dart';
-import 'package:my_app/widgets/hero_banner.dart';
-import 'package:my_app/widgets/poster_rail_section_community_screen.dart';
-import 'package:my_app/widgets/status_rail_section.dart';
-import 'appwrite_service.dart';
+import 'hero_banner.dart';
+import 'status_rail_section.dart';
+import '../appwrite_service.dart';
 import 'poster_item.dart';
+import 'horizontal_rail_section_for_community_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -72,17 +71,17 @@ class _CommunityScreenState extends State<CommunityScreen> {
               isLoading: loading,
             ),
             const SizedBox(height: 20),
-            HorizontalRailSection(
+            HorizontalSection(
               title: "Discover",
               items: movies,
               isLoading: loading,
             ),
-            HorizontalRailSection(
+            HorizontalSection(
               title: "Trending Now",
               items: movies,
               isLoading: loading,
             ),
-            HorizontalRailSection(
+            HorizontalSection(
               title: "New Releases",
               items: movies,
               isLoading: loading,

@@ -1,7 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:my_app/auth_service.dart';
-import 'package:my_app/bottom_navigation_searchicon_screen.dart';
-import 'package:my_app/profile_page_screen.dart';
+import 'package:my_app/pps.dart';
 import 'package:my_app/search_screen.dart';
 import 'package:my_app/sign_in.dart';
 import 'package:my_app/sign_up.dart';
@@ -39,23 +38,14 @@ class AppRouter {
         ],
       ),
       GoRoute(
-        path: '/bottom_nav_search',
-        builder: (context, state) => const BottomNavigationSearchIconScreen(),
-      ),
-      GoRoute(
-        path: '/profile_page',
-        builder: (context, state) {
-          final Map<String, String> queryParams = state.uri.queryParameters;
-          return ChannelProfilePage(
-            name: queryParams['name'] ?? 'No Name',
-            imageUrl: queryParams['imageUrl'] ?? '',
-          );
-        },
+        path: '/profile/:id',
+        builder: (context, state) =>
+            ProfilePageScreen(profileId: state.pathParameters['id']!),
       ),
     ],
     redirect: (context, state) {
       final loggedIn = authService.isLoggedIn;
-      final loggingIn = 
+      final loggingIn =
           state.matchedLocation == '/signin' || state.matchedLocation == '/signup';
 
       if (!loggedIn) {

@@ -10,7 +10,7 @@ import 'auth_service.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
 import 'chats_screen.dart';
-import 'community_screen.dart';
+import 'community_screen_widget/community_screen.dart';
 import 'lens_screen.dart';
 import 'sign_in.dart';
 import 'sign_up.dart';
@@ -193,7 +193,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ChatsScreen(),
-    const AboutSearchesScreen(),
+    const AboutSearches(),
     const CommunityScreen(),
     const LensScreen(),
   ];

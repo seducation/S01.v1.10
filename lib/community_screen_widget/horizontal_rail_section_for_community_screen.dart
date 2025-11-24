@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/poster_item.dart';
+import 'poster_item.dart';
 import 'shimmer_poster_placeholder_community_screen.dart';
 import 'poster_widget_community_screen.dart';
 

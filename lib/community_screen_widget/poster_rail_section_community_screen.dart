@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/poster_item.dart';
-import 'package:my_app/widgets/poster_widget_community_screen.dart';
-import 'package:my_app/widgets/shimmer_poster_placeholder_community_screen.dart';
+import 'poster_item.dart';
+import 'poster_widget_community_screen.dart';
+import 'shimmer_poster_placeholder_community_screen.dart';
 
 class HorizontalRailSection extends StatelessWidget {
   final String title;
