@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_app/psv_about_tabscreen.dart';
@@ -9,16 +8,16 @@ import 'package:my_app/psv_shorts_tabscreen.dart';
 import 'package:my_app/psv_videos_tabscreen.dart';
 import 'package:shimmer/shimmer.dart';
 
-class ProfilePageScreen extends StatefulWidget {
+class ChannelProfilePage extends StatefulWidget {
   final String name;
   final String imageUrl;
-  const ProfilePageScreen({super.key, required this.name, required this.imageUrl});
+  const ChannelProfilePage({super.key, required this.name, required this.imageUrl});
 
   @override
-  State<ProfilePageScreen> createState() => _ProfilePageScreenState();
+  State<ChannelProfilePage> createState() => _ChannelProfilePageState();
 }
 
-class _ProfilePageScreenState extends State<ProfilePageScreen> with SingleTickerProviderStateMixin {
+class _ChannelProfilePageState extends State<ChannelProfilePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Tab Names corresponding to the screenshot
@@ -62,20 +61,25 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> with SingleTicker
                 IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
               ],
               flexibleSpace: FlexibleSpaceBar(
-                background: CachedNetworkImage(
-                  imageUrl: widget.imageUrl,
+                background: Image.network(
+                  widget.imageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Shimmer.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
-                    child: Container(
-                      color: Colors.white,
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error, color: Colors.black),
-                  ),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error, color: Colors.black),
+                    );
+                  },
                 ),
               ),
             ),
@@ -94,19 +98,24 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> with SingleTicker
                           radius: 36,
                           backgroundColor: Colors.white,
                           child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: widget.imageUrl,
-                              placeholder: (context, url) => Shimmer.fromColors(
-                                baseColor: Colors.grey[300]!,
-                                highlightColor: Colors.grey[100]!,
-                                child: Container(
-                                  color: Colors.white,
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.error, color: Colors.black),
-                              ),
+                            child: Image.network(
+                              widget.imageUrl,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Shimmer.fromColors(
+                                  baseColor: Colors.grey[300]!,
+                                  highlightColor: Colors.grey[100]!,
+                                  child: Container(
+                                    color: Colors.white,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.error, color: Colors.black),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -121,12 +130,67 @@ class _ProfilePageScreenState extends State<ProfilePageScreen> with SingleTicker
                                     widget.name,
                                     style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                                   ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.check_circle, size: 16, color: Colors.grey[600])
                                 ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "@${widget.name.replaceAll(' ', '')} • 8.12M subscribers • 2.4K videos",
+                                style: theme.textTheme.bodySmall,
                               ),
                             ],
                           ),
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Description
+                    Text(
+                      "Welcome to The Official ${widget.name} channel! Subscribe and follow for the latest updates. ...more",
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Link
+                    Text(
+                      "a.atvi.com/PlayBlackOps7 and 9 more links",
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Action Buttons
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.onPrimary,
+                          foregroundColor: theme.colorScheme.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        ),
+                        child: const Text("Subscribe", style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.secondaryContainer,
+                          foregroundColor: theme.colorScheme.onSecondaryContainer,
+                          side: BorderSide.none,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        ),
+                        child: const Text("Visit shop", style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
                   ],
                 ),

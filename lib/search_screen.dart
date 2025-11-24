@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:my_app/profile_page_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? query;
+  const SearchScreen({super.key, this.query});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -26,6 +26,14 @@ class _SearchScreenState extends State<SearchScreen> {
     "Google",
     "wbuhs",
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.query != null) {
+      _searchController.text = widget.query!;
+    }
+  }
 
   @override
   void dispose() {
@@ -66,15 +74,9 @@ class _SearchScreenState extends State<SearchScreen> {
           IconButton(
             icon: Icon(Icons.menu, color: theme.colorScheme.onSurface.withAlpha(153)),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfilePageScreen(
-                    name: "User 1",
-                    imageUrl: "https://picsum.photos/seed/p1/200/200",
-                  ),
-                ),
-              );
+               final name = Uri.encodeComponent("User 1");
+               final imageUrl = Uri.encodeComponent("https://picsum.photos/seed/p1/200/200");
+               context.go('/profile_page?name=$name&imageUrl=$imageUrl');
             },
           ),
           const SizedBox(width: 8),
