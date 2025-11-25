@@ -1,12 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/appwrite_service.dart';
 import 'package:my_app/chat_messaging_screen.dart';
 import 'package:my_app/find_account_page_screen.dart';
 import 'package:my_app/model/chat_model.dart';
+import 'package:my_app/sign_in.dart';
+import 'package:provider/provider.dart';
 
-class SelectContactScreen extends StatelessWidget {
+class SelectContactScreen extends StatefulWidget {
   const SelectContactScreen({super.key, required this.onNewChat});
 
   final Function(ChatModel) onNewChat;
+
+  @override
+  State<SelectContactScreen> createState() => _SelectContactScreenState();
+}
+
+class _SelectContactScreenState extends State<SelectContactScreen> {
+  late final AppwriteService _appwriteService;
+
+  @override
+  void initState() {
+    super.initState();
+    _appwriteService = context.read<AppwriteService>();
+  }
+
+  Future<void> _handleContactTap(ChatModel contact) async {
+    try {
+      await _appwriteService.getUser();
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ChatMessagingScreen(
+            chat: contact,
+            onMessageSent: (newMessage) {
+              final newChat = contact;
+              newChat.message = newMessage;
+              newChat.time = "Now";
+              widget.onNewChat(newChat);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const SignInScreen(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +171,7 @@ class SelectContactScreen extends StatelessWidget {
                       final newChat = aiChat;
                       newChat.message = newMessage;
                       newChat.time = "Now"; // Or format current time
-                      onNewChat(newChat); // Call the callback from ChatsScreen
+                      widget.onNewChat(newChat);
                     },
                   ),
                 ),
@@ -152,22 +195,7 @@ class SelectContactScreen extends StatelessWidget {
           // Contact Items
           ...contacts.map((contact) => ContactItem(
                 contact: contact,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatMessagingScreen(
-                        chat: contact,
-                        onMessageSent: (newMessage) {
-                          final newChat = contact;
-                          newChat.message = newMessage;
-                          newChat.time = "Now"; // Or format current time
-                          onNewChat(newChat); // Call the callback from ChatsScreen
-                        },
-                      ),
-                    ),
-                  );
-                },
+                onTap: () => _handleContactTap(contact),
               )),
         ],
       ),
@@ -232,19 +260,20 @@ class ContactItem extends StatelessWidget {
       leading: CircleAvatar(
         radius: 22,
         backgroundColor: Colors.grey[300],
-        backgroundImage: contact.imgPath.isNotEmpty
-            ? NetworkImage(contact.imgPath)
-            : null,
-        child: contact.imgPath.isEmpty
-            ? Text(
+        child: contact.imgPath.isNotEmpty
+            ? Image.network(
+                contact.imgPath,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.person),
+              )
+            : Text(
                 contact.name.isNotEmpty ? contact.name[0] : "",
                 style: TextStyle(
                   color: Colors.grey[800],
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
-              )
-            : null,
+              ),
       ),
       title: Row(
         children: [

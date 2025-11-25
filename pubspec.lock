@@ -5,34 +5,34 @@ packages:
     dependency: transitive
     description:
       name: algolia_client_core
-      sha256: d0d63d054e23df8227d56a2d12c3f64426343e5fded5d3ba3592b604a741c428
+      sha256: d50dd9966e208c94c175d2c06131f8910ac09abd04dccb6820ace613a725fb41
       url: "https://pub.dev"
     source: hosted
-    version: "1.41.1"
+    version: "1.42.0"
   algolia_client_insights:
     dependency: transitive
     description:
       name: algolia_client_insights
-      sha256: "6800e52bc72d8fbda6a13e5ddddff1ad2fedec473d8605639c0f0af2c3b34a51"
+      sha256: "6fe82891636ca9a15dcb862ac141ae0bd30f535ecfafa9ebb7131b65c5f99287"
       url: "https://pub.dev"
     source: hosted
-    version: "1.41.1"
+    version: "1.42.0"
   algolia_client_search:
     dependency: transitive
     description:
       name: algolia_client_search
-      sha256: "0eb8c85bfefa82bc99e958117af13f1a2e889e217461db9a659ecb9d8e79c0fc"
+      sha256: eef03995de938162282223031228492dbf06cf272ff0acc3bb1d32ee076ac65c
       url: "https://pub.dev"
     source: hosted
-    version: "1.41.1"
+    version: "1.42.0"
   algoliasearch:
     dependency: "direct main"
     description:
       name: algoliasearch
-      sha256: eba3f9381bcd6c2d86d9c5f7013ae8cd1643ee12418cec5bbe883a5931e887e3
+      sha256: "4ab1b33ff94e4f9696c46d4e5f1b99870b647fedcb250ce2e75a0c789c0ac028"
       url: "https://pub.dev"
     source: hosted
-    version: "1.41.1"
+    version: "1.42.0"
   appwrite:
     dependency: "direct main"
     description:
@@ -560,14 +560,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  objective_c:
-    dependency: transitive
-    description:
-      name: objective_c
-      sha256: "1f81ed9e41909d44162d7ec8663b2c647c202317cc0b56d3d56f6a13146a0b64"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.1.0"
   octo_image:
     dependency: transitive
     description:
@@ -620,10 +612,10 @@ packages:
     dependency: transitive
     description:
       name: path_provider_foundation
-      sha256: "6192e477f34018ef1ea790c56fffc7302e3bc3efede9e798b934c252c8c105ba"
+      sha256: "97390a0719146c7c3e71b6866c34f1cde92685933165c1c671984390d2aca776"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.0"
+    version: "2.4.4"
   path_provider_linux:
     dependency: transitive
     description:
@@ -680,14 +672,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.5+1"
-  pub_semver:
-    dependency: transitive
-    description:
-      name: pub_semver
-      sha256: "5bfcf68ca79ef689f8990d1160781b4bad40a3bd5e5218ad4076ddb7f4081585"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.0"
   retry:
     dependency: "direct main"
     description:
