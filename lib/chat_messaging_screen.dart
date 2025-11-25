@@ -27,6 +27,7 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
   RealtimeSubscription? _subscription;
   models.User? _currentUser;
   String? _chatId;
+  String? _receiverOwnerId;
 
   final List<models.Row> _messages = [];
   bool _isLoading = true;
@@ -44,19 +45,23 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
       _currentUser = await _appwriteService.getUser();
       if (!mounted) return;
 
-      _chatId = _getChatId(_currentUser!.$id, widget.chat.userId);
+      // 1. Get the receiver's profile/channel to find the ownerId
+      final receiverProfile = await _appwriteService.getProfile(widget.chat.userId);
+      _receiverOwnerId = receiverProfile.data['ownerId'];
+      if (!mounted) return;
 
-      // Fetch initial messages
+      // 2. Use the ownerId to create the chatId and fetch messages
+      _chatId = _getChatId(_currentUser!.$id, _receiverOwnerId!);
+
       final initialMessages = await _appwriteService.getMessages(
         userId1: _currentUser!.$id,
-        userId2: widget.chat.userId,
+        userId2: _receiverOwnerId!,
       );
       setState(() {
         _messages.addAll(initialMessages.rows.reversed);
         _isLoading = false;
       });
 
-      // Subscribe to real-time updates
       _subscribeToMessages();
     } catch (e) {
       if (mounted) {
@@ -92,25 +97,24 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
   }
 
   Future<void> _handleSubmitted(String text) async {
-    if (text.trim().isEmpty || _currentUser == null) return;
+    if (text.trim().isEmpty || _currentUser == null || _receiverOwnerId == null) return;
 
     _textController.clear();
     _focusNode.requestFocus();
 
     try {
+      // 3. Use the correct ownerId as the receiverId
       await _appwriteService.sendMessage(
         senderId: _currentUser!.$id,
-        receiverId: widget.chat.userId,
+        receiverId: _receiverOwnerId!,
         message: text.trim(),
       );
-      // The real-time listener will handle adding the message to the UI
       widget.onMessageSent(text.trim());
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to send message: $e")),
       );
-      // If sending fails, add the message back to the text field for resending
       _textController.text = text;
     }
   }
