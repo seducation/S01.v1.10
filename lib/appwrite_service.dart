@@ -119,6 +119,13 @@ class AppwriteService {
     );
   }
 
+  Future<models.RowList> getProfiles() async {
+    return _db.listRows(
+      databaseId: databaseId,
+      tableId: profilesCollection,
+    );
+  }
+
   String _getChatId(String userId1, String userId2) {
     final ids = [userId1, userId2]..sort();
     return ids.join('_');
