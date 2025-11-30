@@ -139,7 +139,6 @@ class MockData {
   }
 }
 
-
 class HMVFeaturesTabscreen extends StatelessWidget {
   const HMVFeaturesTabscreen({super.key});
 
@@ -147,14 +146,13 @@ class HMVFeaturesTabscreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final allPosts = MockData.getFeed();
     final shortsPosts = allPosts.where((p) => p.type == PostType.image).toList();
-    final regularPosts = allPosts.where((p) => p.type != PostType.image).toList();
 
     // Create a list of widgets to display in the ListView
     final List<Widget> feedItems = [];
 
     // Add the first regular post
-    if (regularPosts.isNotEmpty) {
-      feedItems.add(PostWidget(post: regularPosts.first, allPosts: allPosts));
+    if (allPosts.isNotEmpty) {
+      feedItems.add(PostWidget(post: allPosts.first, allPosts: allPosts));
     }
 
     // Add the shorts rail
@@ -163,8 +161,8 @@ class HMVFeaturesTabscreen extends StatelessWidget {
     }
 
     // Add the rest of the regular posts
-    if (regularPosts.length > 1) {
-      feedItems.addAll(regularPosts.skip(1).map((post) => PostWidget(post: post, allPosts: allPosts)));
+    if (allPosts.length > 1) {
+      feedItems.addAll(allPosts.skip(1).map((post) => PostWidget(post: post, allPosts: allPosts)));
     }
 
     return Scaffold(
@@ -295,7 +293,6 @@ class _ShortsThumbnail extends StatelessWidget {
     );
   }
 }
-
 
 class PostWidget extends StatelessWidget {
   final Post post;
