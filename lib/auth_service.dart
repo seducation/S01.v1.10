@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'appwrite_service.dart';
 
 class User {
   final String id;
@@ -13,6 +14,7 @@ class User {
 class AuthService with ChangeNotifier {
   Client client = Client();
   late Account account;
+  late AppwriteService _appwriteService; // Added this line
 
   bool _isLoggedIn = false;
   User? _currentUser;
@@ -25,6 +27,7 @@ class AuthService with ChangeNotifier {
         .setEndpoint('https://sgp.cloud.appwrite.io/v1') 
         .setProject('691948bf001eb3eccd77');
     account = Account(client);
+    _appwriteService = AppwriteService(); // Added this line
     init();
   }
 
@@ -78,8 +81,6 @@ class AuthService with ChangeNotifier {
   }
 
   Future<void> createPost(Map<String, dynamic> postData) async {
-    // This is likely a database operation and should be handled by a
-    // dedicated database service, not the auth service.
-    await Future.delayed(const Duration(seconds: 1));
+    await _appwriteService.createPost(postData);
   }
 }

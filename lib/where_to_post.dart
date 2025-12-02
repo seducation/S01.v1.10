@@ -104,21 +104,6 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Post to...'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton(
-              onPressed: _selectedProfileIds.isEmpty || _isPublishing ? null : _publishPosts,
-              child: _isPublishing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Publish'),
-            ),
-          ),
-        ],
       ),
       body: FutureBuilder<List<Profile>>(
         future: _profilesFuture,
@@ -165,6 +150,21 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
           );
         },
       ),
+      persistentFooterButtons: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _selectedProfileIds.isEmpty || _isPublishing ? null : _publishPosts,
+            child: _isPublishing
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Publish'),
+          ),
+        ),
+      ],
     );
   }
 }

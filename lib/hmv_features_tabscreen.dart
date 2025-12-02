@@ -1,27 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/appwrite_service.dart';
 import './profile_page.dart';
+import 'dart:math';
+import 'model/profile.dart';
 
 // ---------------------------------------------------------------------------
 // 1. DATA MODELS ( The "Base" Structure )
 // ---------------------------------------------------------------------------
 
 enum PostType { text, image, linkPreview, video }
-
-class User {
-  final String id;
-  final String name;
-  final String handle;
-  final String avatarUrl;
-  final bool isVerified;
-
-  User({
-    required this.id,
-    required this.name,
-    required this.handle,
-    required this.avatarUrl,
-    this.isVerified = false,
-  });
-}
 
 class PostStats {
   final int likes;
@@ -34,14 +21,15 @@ class PostStats {
 
 class Post {
   final String id;
-  final User author;
-  final String timestamp;
+  final Profile author;
+  final DateTime timestamp;
   final String contentText;
   final PostType type;
   final String? mediaUrl; // Image URL or Link Preview Image
   final String? linkUrl;  // For Link Previews
   final String? linkTitle; // For Link Previews
   final PostStats stats;
+  double score;
 
   Post({
     required this.id,
@@ -53,6 +41,7 @@ class Post {
     this.linkUrl,
     this.linkTitle,
     required this.stats,
+    this.score = 0.0,
   });
 }
 
@@ -61,43 +50,46 @@ class Post {
 // ---------------------------------------------------------------------------
 
 class MockData {
-  static final User currentUser = User(
+  static final Profile currentUser = Profile(
     id: 'user_alex',
     name: "Alex Designer",
-    handle: "@alex_ux",
-    avatarUrl: "https://i.pravatar.cc/150?u=alex",
+    type: "profile",
+    ownerId: "",
+    profileImageUrl: "https://i.pravatar.cc/150?u=alex",
   );
 
-  static final User techSource = User(
+  static final Profile techSource = Profile(
     id: 'user_tech',
     name: "Android for PCs",
-    handle: "@android_pc_mods",
-    avatarUrl: "https://upload.wikimedia.org/wikipedia/commons/d/db/Android_robot_2014.svg", // Placeholder
-    isVerified: true,
+    type: "profile",
+    ownerId: "",
+    profileImageUrl: "https://upload.wikimedia.org/wikipedia/commons/d/db/Android_robot_2014.svg", // Placeholder
   );
 
-  static final User gamingSource = User(
+  static final Profile gamingSource = Profile(
     id: 'user_gaming',
     name: "Warzone Updates",
-    handle: "@cod_warfare",
-    avatarUrl: "https://i.pravatar.cc/150?u=gaming",
+    type: "profile",
+    ownerId: "",
+    profileImageUrl: "https://i.pravatar.cc/150?u=gaming",
   );
 
-   static final User animeSource = User(
+   static final Profile animeSource = Profile(
     id: 'user_anime',
     name: "Shonen Jump Daily",
-    handle: "@shonen_leaks",
-    avatarUrl: "https://i.pravatar.cc/150?u=anime",
-    isVerified: true,
+    type: "profile",
+    ownerId: "",
+    profileImageUrl: "https://i.pravatar.cc/150?u=anime",
   );
 
   static List<Post> getFeed() {
+    final now = DateTime.now();
     return [
       // 1. Link Preview Style (Like the Apple News item)
       Post(
         id: '1',
         author: techSource,
-        timestamp: "6d",
+        timestamp: now.subtract(const Duration(days: 6)),
         contentText: "We've overhauled our list of the best TVs to give you the most up-to-date recommendations – just in time for the holidays.",
         type: PostType.linkPreview,
         mediaUrl: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=800&q=80", // iPhone/Apple image
@@ -109,7 +101,7 @@ class MockData {
       Post(
         id: '2',
         author: gamingSource,
-        timestamp: "2h",
+        timestamp: now.subtract(const Duration(hours: 2)),
         linkTitle: "The new Free Ghost Skin is absolutely CRAZY! 🤯",
         contentText: "Check out the details below.",
         type: PostType.image,
@@ -120,7 +112,7 @@ class MockData {
       Post(
         id: '3',
         author: currentUser,
-        timestamp: "Just now",
+        timestamp: now.subtract(const Duration(minutes: 1)),
         contentText: "Just finished designing a new UI in Flutter. The declarative syntax makes building complex lists so much easier! #FlutterDev #UI",
         type: PostType.text,
         stats: PostStats(likes: 12, comments: 2, shares: 0, views: 45),
@@ -129,7 +121,7 @@ class MockData {
       Post(
         id: '4',
         author: animeSource,
-        timestamp: "12h",
+        timestamp: now.subtract(const Duration(hours: 12)),
         contentText: "Vegeta's pride is on the line in the upcoming chapter. Who else is hyped?",
         type: PostType.image,
         mediaUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80", // Anime vibe
@@ -139,20 +131,93 @@ class MockData {
   }
 }
 
-class HMVFeaturesTabscreen extends StatelessWidget {
+double calculateScore(Post post) {
+  final hoursSincePosted = DateTime.now().difference(post.timestamp).inHours;
+  // FinalScore = ((Likes * 1) + (Comments * 5) + (Shares * 10)) / (HoursSincePosted + 2)^1.5
+  final score = ((post.stats.likes * 1) + (post.stats.comments * 5) + (post.stats.shares * 10)) /
+      pow(hoursSincePosted + 2, 1.5);
+  return score;
+}
+
+class HMVFeaturesTabscreen extends StatefulWidget {
   const HMVFeaturesTabscreen({super.key});
 
   @override
+  State<HMVFeaturesTabscreen> createState() => _HMVFeaturesTabscreenState();
+}
+
+class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
+  late AppwriteService _appwriteService;
+  late List<Post> _posts;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _appwriteService = AppwriteService();
+    _fetchPosts();
+  }
+
+  Future<void> _fetchPosts() async {
+    try {
+      final postsResponse = await _appwriteService.getPosts();
+      final profilesResponse = await _appwriteService.getProfiles();
+
+      final profilesMap = {for (var p in profilesResponse.rows) p.$id: Profile.fromMap(p.data, p.$id)};
+
+      final posts = postsResponse.rows.map((row) {
+        final profileId = row.data['profile_id'] as String?;
+        final author = profilesMap[profileId];
+
+        if (author == null) {
+          return null;
+        }
+
+        return Post(
+          id: row.$id,
+          author: author,
+          timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
+          contentText: row.data['caption'] as String? ?? '',
+          type: PostType.text, // Defaulting to text, as type is not in the data model
+          stats: PostStats(), // Defaulting to empty stats
+        );
+      }).whereType<Post>().toList();
+
+      setState(() {
+        _posts = posts;
+        _isLoading = false;
+      });
+      _rankPosts();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle error
+    }
+  }
+
+  void _rankPosts() {
+    for (var post in _posts) {
+      post.score = calculateScore(post);
+    }
+    // Sort posts in descending order of score
+    _posts.sort((a, b) => b.score.compareTo(a.score));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final allPosts = MockData.getFeed();
-    final shortsPosts = allPosts.where((p) => p.type == PostType.image).toList();
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final shortsPosts = _posts.where((p) => p.type == PostType.image).toList();
 
     // Create a list of widgets to display in the ListView
     final List<Widget> feedItems = [];
 
     // Add the first regular post
-    if (allPosts.isNotEmpty) {
-      feedItems.add(PostWidget(post: allPosts.first, allPosts: allPosts));
+    if (_posts.isNotEmpty) {
+      feedItems.add(PostWidget(post: _posts.first, allPosts: _posts));
     }
 
     // Add the shorts rail
@@ -161,8 +226,8 @@ class HMVFeaturesTabscreen extends StatelessWidget {
     }
 
     // Add the rest of the regular posts
-    if (allPosts.length > 1) {
-      feedItems.addAll(allPosts.skip(1).map((post) => PostWidget(post: post, allPosts: allPosts)));
+    if (_posts.length > 1) {
+      feedItems.addAll(_posts.skip(1).map((post) => PostWidget(post: post, allPosts: _posts)));
     }
 
     return Scaffold(
@@ -245,6 +310,7 @@ class _ShortsThumbnail extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            if (post.mediaUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.network(
@@ -269,9 +335,10 @@ class _ShortsThumbnail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (post.author.profileImageUrl != null)
                   CircleAvatar(
                     radius: 12,
-                    backgroundImage: NetworkImage(post.author.avatarUrl),
+                    backgroundImage: NetworkImage(post.author.profileImageUrl!),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -365,7 +432,7 @@ class PostWidget extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 12.0, right: 12.0, bottom: 12.0),
             child: Text(
-              post.timestamp,
+              '${DateTime.now().difference(post.timestamp).inHours} hours ago',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ),
@@ -388,9 +455,10 @@ class PostWidget extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
         child: Row(
           children: [
+            if(post.author.profileImageUrl != null)
             CircleAvatar(
               radius: 20,
-              backgroundImage: NetworkImage(post.author.avatarUrl),
+              backgroundImage: NetworkImage(post.author.profileImageUrl!),
               backgroundColor: Colors.grey[200],
             ),
             const SizedBox(width: 12),
@@ -403,7 +471,7 @@ class PostWidget extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
                   ),
                   Text(
-                    post.author.handle,
+                    post.author.type,
                     style: TextStyle(color: handleColor, fontSize: 14),
                   ),
                 ],
@@ -432,7 +500,7 @@ class PostWidget extends StatelessWidget {
         );
       },
       // Removed the Stack to prevent overlay
-      child: Image.network(
+      child: post.mediaUrl != null ? Image.network(
         post.mediaUrl!,
         width: double.infinity,
         fit: BoxFit.cover,
@@ -451,7 +519,7 @@ class PostWidget extends StatelessWidget {
             child: const Icon(Icons.error, color: Colors.grey)
           )
         ),
-      ),
+      ): Container(),
     );
   }
 
@@ -519,7 +587,7 @@ class PostWidget extends StatelessWidget {
           children: [
             _buildActionItem(Icons.favorite_border, _formatCount(post.stats.likes)),
             const SizedBox(width: 20),
-            _buildActionItem(Icons.chat_bubble_outline, post.stats.comments.toString()),
+            _buildActionItem(Icons.comment, post.stats.comments.toString()),
             const SizedBox(width: 20),
             _buildActionItem(Icons.repeat, post.stats.shares.toString()),
           ],
@@ -597,9 +665,10 @@ class DetailPage extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
+                      if (post.author.profileImageUrl != null)
                       CircleAvatar(
                         radius: 16,
-                        backgroundImage: NetworkImage(post.author.avatarUrl),
+                        backgroundImage: NetworkImage(post.author.profileImageUrl!),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -683,6 +752,7 @@ class ShortsPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        if (post.mediaUrl != null)
         Image.network(
           post.mediaUrl!,
           fit: BoxFit.cover,
@@ -706,13 +776,14 @@ class ShortsPage extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if(post.author.profileImageUrl != null)
                   CircleAvatar(
                     radius: 16,
-                    backgroundImage: NetworkImage(post.author.avatarUrl),
+                    backgroundImage: NetworkImage(post.author.profileImageUrl!),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    post.author.handle,
+                    post.author.name, // handle is not available in Profile model
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],

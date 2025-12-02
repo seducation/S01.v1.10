@@ -14,6 +14,8 @@ class AppwriteService {
   static const String databaseId = "691963ed003c37eb797f";
   static const String profilesCollection = "profiles";
   static const String messagesCollection = "messages";
+  static const String postsCollection = "posts";
+  static const String imagesCollection = "images"; // Added this line
 
   AppwriteService() {
     _client
@@ -260,11 +262,32 @@ class AppwriteService {
       rethrow;
     }
   }
+  
+  Future<models.RowList> getPosts() async {
+    return _db.listRows(
+      databaseId: databaseId,
+      tableId: postsCollection,
+    );
+  }
+
+  Future<void> createPost(Map<String, dynamic> postData) async {
+    await _db.createRow(
+      databaseId: databaseId,
+      tableId: postsCollection,
+      rowId: ID.unique(),
+      data: postData,
+      permissions: [
+        Permission.read(Role.any()),
+        Permission.update(Role.user(postData['profile_id'])),
+        Permission.delete(Role.user(postData['profile_id'])),
+      ],
+    );
+  }
 
   Future<models.RowList> getImages({String? cursor}) async {
     return await _db.listRows(
       databaseId: '691963ed003c37eb797f',
-      tableId: 'image',
+      tableId: imagesCollection,
       queries: [
         Query.limit(10),
         if (cursor != null) Query.cursorAfter(cursor),
@@ -283,7 +306,7 @@ class AppwriteService {
 
     return await _db.createRow(
       databaseId: '691963ed003c37eb797f',
-      tableId: 'image',
+      tableId: imagesCollection,
       rowId: ID.unique(),
       data: {
         'title': 'New Image',
