@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/auth_service.dart';
 import 'package:my_app/model/profile.dart';
 import 'package:my_app/tabs/about_tab.dart';
 import 'package:my_app/tabs/home_tab.dart';
@@ -25,11 +26,13 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late AppwriteService _appwriteService;
+  late AuthService _authService;
   Profile? _profile;
+  String? _currentUserId;
 
   bool _isFollowing = false;
-  int _followersCount = 8120000; // Mock data
-  final bool _isCurrentUser = false;
+  int _followersCount = 0;
+  bool _isLoading = true;
 
   final List<String> _tabs = [
     "Home",
@@ -46,21 +49,46 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _appwriteService = context.read<AppwriteService>();
-    _fetchProfile();
+    _authService = context.read<AuthService>();
+    _loadProfileData();
   }
 
-  Future<void> _fetchProfile() async {
+  Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoading = true;
+    });
     try {
+      final user = await _authService.getCurrentUser();
+      _currentUserId = user?.id;
+      
       final profile = await _appwriteService.getProfile(widget.profileId);
+      final followers = List<String>.from(profile.data['followers'] ?? []);
+      
       setState(() {
         _profile = Profile.fromMap(profile.data, profile.$id);
+        _followersCount = followers.length;
+        if (_currentUserId != null) {
+          _isFollowing = followers.contains(_currentUserId);
+        }
+        _isLoading = false;
       });
     } catch (e) {
-      // Handle error
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle error, maybe show a snackbar
     }
   }
 
   Future<void> _toggleFollow() async {
+    if (_currentUserId == null) {
+      // Maybe prompt user to log in
+      return;
+    }
+
+    final originalFollowState = _isFollowing;
+    final originalFollowersCount = _followersCount;
+
     setState(() {
       _isFollowing = !_isFollowing;
       if (_isFollowing) {
@@ -69,6 +97,27 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
         _followersCount--;
       }
     });
+
+    try {
+      if (_isFollowing) {
+        await _appwriteService.followProfile(
+          profileId: widget.profileId,
+          followerId: _currentUserId!,
+        );
+      } else {
+        await _appwriteService.unfollowProfile(
+          profileId: widget.profileId,
+          followerId: _currentUserId!,
+        );
+      }
+    } catch (e) {
+      // Revert state on error
+      setState(() {
+        _isFollowing = originalFollowState;
+        _followersCount = originalFollowersCount;
+      });
+      // Handle error, maybe show a snackbar
+    }
   }
 
   @override
@@ -79,167 +128,183 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isCurrentUser = _currentUserId != null && _currentUserId == _profile?.ownerId;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: _profile == null
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : NestedScrollView(
-              headerSliverBuilder:
-                  (BuildContext context, bool innerBoxIsScrolled) {
-                return <Widget>[
-                  SliverAppBar(
-                    expandedHeight: 180.0,
-                    pinned: true,
-                    floating: false,
-                    backgroundColor: Colors.white,
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      onPressed: () => context.pop(),
-                    ),
-                    actions: [
-                      IconButton(
-                          icon: const Icon(Icons.cast, color: Colors.black),
-                          onPressed: () {}),
-                      IconButton(
-                          icon: const Icon(Icons.search, color: Colors.black),
-                          onPressed: () {}),
-                      IconButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.black),
-                          onPressed: () {}),
-                    ],
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: _profile!.profileImageUrl != null &&
-                              _profile!.profileImageUrl!.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: _profile!.profileImageUrl!,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Shimmer.fromColors(
-                                baseColor: Colors.grey[300]!,
-                                highlightColor: Colors.grey[100]!,
-                                child: Container(color: Colors.white),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  Container(color: Colors.grey[200]),
-                            )
-                          : Container(color: Colors.grey[200]),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+          : _profile == null
+              ? const Center(child: Text("Profile not found"))
+              : NestedScrollView(
+                  headerSliverBuilder:
+                      (BuildContext context, bool innerBoxIsScrolled) {
+                    return <Widget>[
+                      SliverAppBar(
+                        expandedHeight: 180.0,
+                        pinned: true,
+                        floating: false,
+                        backgroundColor: Colors.white,
+                        leading: IconButton(
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.black),
+                          onPressed: () => context.pop(),
+                        ),
+                        actions: [
+                          IconButton(
+                              icon: const Icon(Icons.cast, color: Colors.black),
+                              onPressed: () {}),
+                          IconButton(
+                              icon:
+                                  const Icon(Icons.search, color: Colors.black),
+                              onPressed: () {}),
+                          IconButton(
+                              icon: const Icon(Icons.more_vert,
+                                  color: Colors.black),
+                              onPressed: () {}),
+                        ],
+                        flexibleSpace: FlexibleSpaceBar(
+                          background: _profile!.profileImageUrl != null &&
+                                  _profile!.profileImageUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: _profile!.profileImageUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      Shimmer.fromColors(
+                                    baseColor: Colors.grey[300]!,
+                                    highlightColor: Colors.grey[100]!,
+                                    child: Container(color: Colors.white),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      Container(color: Colors.grey[200]),
+                                )
+                              : Container(color: Colors.grey[200]),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              CircleAvatar(
-                                radius: 36,
-                                backgroundColor: Colors.grey[300],
-                                backgroundImage: _profile!.profileImageUrl != null &&
-                                        _profile!.profileImageUrl!.isNotEmpty
-                                    ? CachedNetworkImageProvider(
-                                        _profile!.profileImageUrl!)
-                                    : null,
-                                child: _profile!.profileImageUrl == null ||
-                                        _profile!.profileImageUrl!.isEmpty
-                                    ? Icon(Icons.person,
-                                        size: 40, color: Colors.grey[600])
-                                    : null,
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 36,
+                                    backgroundColor: Colors.grey[300],
+                                    backgroundImage: _profile!
+                                                .profileImageUrl !=
+                                            null &&
+                                            _profile!
+                                                .profileImageUrl!.isNotEmpty
+                                        ? CachedNetworkImageProvider(
+                                            _profile!.profileImageUrl!)
+                                        : null,
+                                    child: _profile!.profileImageUrl == null ||
+                                            _profile!.profileImageUrl!.isEmpty
+                                        ? Icon(Icons.person,
+                                            size: 40, color: Colors.grey[600])
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _profile!.name,
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "$_followersCount followers",
+                                          style: const TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _profile!.name,
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "$_followersCount followers",
-                                      style: const TextStyle(
-                                          color: Colors.black54, fontSize: 12),
-                                    ),
-                                  ],
+                              const SizedBox(height: 12),
+                              if (_profile!.bio != null &&
+                                  _profile!.bio!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    _profile!.bio!,
+                                    style: const TextStyle(
+                                        color: Colors.black87, fontSize: 13),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
+                              const SizedBox(height: 16),
+                              if (!isCurrentUser)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: _toggleFollow,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _isFollowing
+                                          ? Colors.grey[200]
+                                          : Colors.black,
+                                      foregroundColor: _isFollowing
+                                          ? Colors.black
+                                          : Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(24)),
+                                    ),
+                                    child: Text(
+                                        _isFollowing ? "Unfollow" : "Follow",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          if (_profile!.bio != null && _profile!.bio!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                _profile!.bio!,
-                                style: const TextStyle(
-                                    color: Colors.black87, fontSize: 13),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          const SizedBox(height: 16),
-                          if (!_isCurrentUser)
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _toggleFollow,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isFollowing
-                                      ? Colors.grey[200]
-                                      : Colors.black,
-                                  foregroundColor: _isFollowing
-                                      ? Colors.black
-                                      : Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(24)),
-                                ),
-                                child: Text(
-                                    _isFollowing ? "Unfollow" : "Follow",
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  SliverPersistentHeader(
-                    delegate: _SliverAppBarDelegate(
-                      TabBar(
-                        controller: _tabController,
-                        isScrollable: true,
-                        labelColor: Colors.black,
-                        unselectedLabelColor: Colors.black54,
-                        indicatorColor: Colors.black,
-                        dividerColor: Colors.transparent,
-                        labelStyle: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                        tabs:
-                            _tabs.map((String name) => Tab(text: name)).toList(),
+                      SliverPersistentHeader(
+                        delegate: _SliverAppBarDelegate(
+                          TabBar(
+                            controller: _tabController,
+                            isScrollable: true,
+                            labelColor: Colors.black,
+                            unselectedLabelColor: Colors.black54,
+                            indicatorColor: Colors.black,
+                            dividerColor: Colors.transparent,
+                            labelStyle: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                            tabs: _tabs
+                                .map((String name) => Tab(text: name))
+                                .toList(),
+                          ),
+                        ),
+                        pinned: true,
                       ),
-                    ),
-                    pinned: true,
+                    ];
+                  },
+                  body: TabBarView(
+                    controller: _tabController,
+                    children: const [
+                      HomeTab(),
+                      PostsTab(),
+                      VideosTab(),
+                      ShortsTab(),
+                      LiveTab(),
+                      PodcastsTab(),
+                      AboutTab(),
+                    ],
                   ),
-                ];
-              },
-              body: TabBarView(
-                controller: _tabController,
-                children: const [
-                  HomeTab(),
-                  PostsTab(),
-                  VideosTab(),
-                  ShortsTab(),
-                  LiveTab(),
-                  PodcastsTab(),
-                  AboutTab(),
-                ],
-              ),
-            ),
+                ),
     );
   }
 }
