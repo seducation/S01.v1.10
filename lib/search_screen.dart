@@ -1,9 +1,15 @@
+import 'dart:async';
+
+import 'package:appwrite/models.dart' as models;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_app/appwrite_service.dart';
 
 class SearchScreen extends StatefulWidget {
   final String? query;
-  const SearchScreen({super.key, this.query});
+  final AppwriteService appwriteService;
+
+  const SearchScreen({super.key, this.query, required this.appwriteService});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -11,21 +17,9 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  final List<String> _historyItems = [
-    "chatgpt",
-    "figma",
-    "idx google",
-    "apple tv mobile ui",
-    "github",
-    "hotstar",
-    "zee5",
-    "hotstar like ui",
-    "apple tv",
-    "telegram",
-    "Google",
-    "wbuhs",
-  ];
+  Timer? _debounce;
+  List<models.Row> _suggestions = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,12 +27,51 @@ class _SearchScreenState extends State<SearchScreen> {
     if (widget.query != null) {
       _searchController.text = widget.query!;
     }
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    setState(() {
+      _isLoading = true;
+    });
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (_searchController.text.isNotEmpty) {
+        _fetchSuggestions(_searchController.text);
+      } else {
+        setState(() {
+          _suggestions = [];
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _fetchSuggestions(String query) async {
+    try {
+      final results = await widget.appwriteService.searchPosts(query: query);
+      setState(() {
+        _suggestions = results.rows;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle error, maybe show a snackbar
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching suggestions: $e')),
+      );
+    }
   }
 
   void _submitSearch(String query) {
@@ -57,7 +90,7 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildSearchBar(context),
             Divider(height: 1, color: theme.dividerColor),
             Expanded(
-              child: _buildHistoryList(),
+              child: _buildSuggestionsList(),
             ),
           ],
         ),
@@ -99,6 +132,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           IconButton(
             onPressed: () {
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Voice search action')),
               );
@@ -109,6 +143,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(width: 16),
           IconButton(
             onPressed: () {
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Camera search action')),
               );
@@ -122,49 +157,55 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildHistoryList() {
+  Widget _buildSuggestionsList() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_searchController.text.isEmpty) {
+      return const Center(
+          child: Text('Enter a search term to see suggestions.'));
+    }
+
+    if (_suggestions.isEmpty) {
+      return const Center(child: Text('No suggestions found.'));
+    }
+
     return ListView.builder(
-      itemCount: _historyItems.length,
+      itemCount: _suggestions.length,
       itemBuilder: (context, index) {
-        return _buildHistoryItem(_historyItems[index]);
+        return _buildSuggestionItem(_suggestions[index]);
       },
     );
   }
 
-  Widget _buildHistoryItem(String item) {
+  Widget _buildSuggestionItem(models.Row suggestion) {
     final theme = Theme.of(context);
+    final title =
+        suggestion.data['titles'] ?? suggestion.data['caption'] ?? 'No title';
+
     return InkWell(
       onTap: () {
-        _searchController.text = item;
-        _submitSearch(item);
+        _submitSearch(title);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(width: 8),
             Icon(
-              Icons.schedule,
+              Icons.search,
               color: theme.colorScheme.onSurface.withAlpha(153),
-              size: 22,
             ),
             const SizedBox(width: 24),
             Expanded(
               child: Text(
-                item,
+                title,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-            ),
-            const SizedBox(width: 40),
-            Icon(
-              Icons.north_west,
-              color: theme.colorScheme.onSurface.withAlpha(153),
-              size: 18,
             ),
           ],
         ),

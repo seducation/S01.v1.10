@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/appwrite_service.dart';
-import 'package:my_app/search_screen.dart';
 import 'package:provider/provider.dart';
 import './profile_page.dart';
 import 'dart:math';
@@ -209,20 +208,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('HMV'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildFeed(),

@@ -136,7 +136,7 @@ GoRouter _createRouter(AuthService authService) {
       ),
       GoRoute(
         path: '/search',
-        builder: (context, state) => const SearchScreen(),
+        builder: (context, state) => SearchScreen(appwriteService: context.read<AppwriteService>()),
         routes: [
           GoRoute(
             path: ':query',
