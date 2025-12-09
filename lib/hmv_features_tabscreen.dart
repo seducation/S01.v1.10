@@ -392,7 +392,7 @@ class _PostWidgetState extends State<PostWidget> {
     });
 
     try {
-      await _appwriteService.updatePostLikes(widget.post.id, newLikeCount);
+      await _appwriteService.updatePostLikes(widget.post.id, newLikeCount, widget.post.timestamp.toIso8601String());
       await _prefs!.setBool(widget.post.id, newLikedState);
     } catch (e) {
       // Revert the state if the update fails
@@ -401,8 +401,8 @@ class _PostWidgetState extends State<PostWidget> {
         _likeCount = _isLiked ? newLikeCount + 1 : newLikeCount -1;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Failed to update like. Please try again.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
         ));
       }
     }
