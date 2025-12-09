@@ -16,11 +16,16 @@ class CommentsScreen extends StatefulWidget {
 
 class _Comment {
   final String text;
-  final Profile author;
+  final Profile? author;
+  final String userId;
   final DateTime timestamp;
 
-  _Comment(
-      {required this.text, required this.author, required this.timestamp});
+  _Comment({
+    required this.text,
+    this.author,
+    required this.userId,
+    required this.timestamp,
+  });
 }
 
 class _CommentsScreenState extends State<CommentsScreen> {
@@ -38,35 +43,40 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   Future<void> _fetchComments() async {
     try {
-      final commentsResponse = await _appwriteService.getComments(widget.post.id);
+      final commentsResponse =
+          await _appwriteService.getComments(widget.post.id);
       final profilesResponse = await _appwriteService.getProfiles();
 
-      final profilesMap =
-          {for (var p in profilesResponse.rows) p.$id: Profile.fromMap(p.data, p.$id)};
+      final profilesMap = {
+        for (var p in profilesResponse.rows)
+          p.data['ownerId']: Profile.fromMap(p.data, p.$id)
+      };
 
       final comments = commentsResponse.rows.map((row) {
-        final profileId = row.data['user_id'] as String?;
-        final author = profilesMap[profileId];
-
-        if (author == null) {
-          return null;
-        }
+        final userId = row.data['user_id'] as String;
+        final author = profilesMap[userId];
 
         return _Comment(
           text: row.data['text'] as String? ?? '',
           author: author,
-          timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
+          userId: userId,
+          timestamp:
+              DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
         );
-      }).whereType<_Comment>().toList();
+      }).toList();
 
-      setState(() {
-        _comments = comments;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _comments = comments;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
       // Handle error
     }
   }
@@ -89,7 +99,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
         text: _commentController.text,
       );
       _commentController.clear();
-      _fetchComments(); // Refresh comments
+      await _fetchComments(); // Refresh comments
     } catch (e) {
       // Handle error
     }
@@ -117,7 +127,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
   Widget _buildCommentsList() {
     if (_comments.isEmpty) {
       return const Center(
-        child: Text('No comments yet.'),
+        child: Text('No comments yet. Be the first to comment!'),
       );
     }
 
@@ -125,24 +135,32 @@ class _CommentsScreenState extends State<CommentsScreen> {
       itemCount: _comments.length,
       itemBuilder: (context, index) {
         final comment = _comments[index];
-        final bool isValidUrl = comment.author.profileImageUrl != null && (comment.author.profileImageUrl!.startsWith('http') || comment.author.profileImageUrl!.startsWith('https'));
+        final author = comment.author;
+        final isValidUrl = author?.profileImageUrl != null &&
+            (author!.profileImageUrl!.startsWith('http') ||
+                author.profileImageUrl!.startsWith('https'));
 
         return Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if(isValidUrl)
-              CircleAvatar(
-                backgroundImage: CachedNetworkImageProvider(comment.author.profileImageUrl!),
-              ),
+              if (isValidUrl)
+                CircleAvatar(
+                  backgroundImage:
+                      CachedNetworkImageProvider(author.profileImageUrl!),
+                )
+              else
+                const CircleAvatar(
+                  child: Icon(Icons.person),
+                ),
               const SizedBox(width: 8.0),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      comment.author.name,
+                      author?.name ?? 'Unknown User (${comment.userId})',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(comment.text),
