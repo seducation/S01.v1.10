@@ -5,6 +5,7 @@ import 'status_rail_section.dart';
 import '../appwrite_service.dart';
 import 'poster_item.dart';
 import 'horizontal_rail_section_for_community_screen.dart';
+import 'product_grid.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -70,6 +71,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
               items: movies,
               isLoading: loading,
             ),
+            const SizedBox(height: 20),
+            ProductGrid(),
             const SizedBox(height: 20),
             HorizontalSection(
               title: "Discover",

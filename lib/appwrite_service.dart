@@ -302,24 +302,27 @@ class AppwriteService {
         tableId: "movies",
       );
 
-      return data.rows.map((row) {
+      final movies = <PosterItem>[];
+      for (final row in data.rows) {
         final imageId = row.data['imageId'];
-        final imageUrl = _storage.getFileView(
-          bucketId: Environment.appwriteStorageBucketId,
-          fileId: imageId,
-        ).toString();
-
-        return PosterItem.fromMap({
-          '\$id': row.$id,
-          'title': row.data['title'],
-          'imageUrl': imageUrl,
-        });
-      }).toList();
+        if (imageId != null && imageId.isNotEmpty) {
+          final imageUrl = _storage.getFileView(
+            bucketId: Environment.appwriteStorageBucketId,
+            fileId: imageId,
+          ).toString();
+          movies.add(PosterItem.fromMap({
+            '\$id': row.$id,
+            'title': row.data['title'],
+            'imageUrl': imageUrl,
+          }));
+        }
+      }
+      return movies;
     } on AppwriteException catch (e) {
       if (e.code == 404) {
         return [];
       }
-      rethrow;
+      return [];
     }
   }
 
