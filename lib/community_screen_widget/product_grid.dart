@@ -1,59 +1,61 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'product_model.dart';
+import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/models/product.dart';
+import 'package:provider/provider.dart';
 
-class ProductGrid extends StatelessWidget {
-  final List<Product> products = [
-    Product(
-      imageUrl: 'https://via.placeholder.com/150',
-      title: 'Product 1',
-      price: 19.99,
-      vendor: 'Vendor 1',
-      rating: 4.5,
-      reviewCount: 10,
-    ),
-    Product(
-      imageUrl: 'https://via.placeholder.com/150',
-      title: 'Product 2',
-      price: 29.99,
-      vendor: 'Vendor 2',
-      rating: 4.2,
-      reviewCount: 20,
-    ),
-    Product(
-      imageUrl: 'https://via.placeholder.com/150',
-      title: 'Product 3',
-      price: 39.99,
-      vendor: 'Vendor 3',
-      rating: 4.8,
-      reviewCount: 30,
-    ),
-    Product(
-      imageUrl: 'https://via.placeholder.com/150',
-      title: 'Product 4',
-      price: 49.99,
-      vendor: 'Vendor 4',
-      rating: 4.0,
-      reviewCount: 40,
-    ),
-  ];
+class ProductGrid extends StatefulWidget {
+  const ProductGrid({super.key});
 
-  ProductGrid({super.key});
+  @override
+  State<ProductGrid> createState() => _ProductGridState();
+}
+
+class _ProductGridState extends State<ProductGrid> {
+  late Future<List<Product>> _productsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _productsFuture = _getProducts();
+  }
+
+  Future<List<Product>> _getProducts() async {
+    final appwriteService = Provider.of<AppwriteService>(context, listen: false);
+    final response = await appwriteService.getProducts();
+    return response.rows
+        .map((row) => Product.fromMap(row.data, row.$id))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        mainAxisSpacing: 10.0,
-        crossAxisSpacing: 10.0,
-      ),
-      itemBuilder: (context, index) {
-        return ProductCard(product: products[index]);
+    return FutureBuilder<List<Product>>(
+      future: _productsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No products found.'));
+        }
+
+        final products = snapshot.data!;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: products.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.75,
+            mainAxisSpacing: 10.0,
+            crossAxisSpacing: 10.0,
+          ),
+          itemBuilder: (context, index) {
+            return ProductCard(product: products[index]);
+          },
+        );
       },
     );
   }
@@ -66,6 +68,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appwriteService = Provider.of<AppwriteService>(context, listen: false);
+
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -81,13 +85,20 @@ class ProductCard extends StatelessWidget {
                 topLeft: Radius.circular(15.0),
                 topRight: Radius.circular(15.0),
               ),
-              child: CachedNetworkImage(
-                imageUrl: product.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => const Icon(Icons.error),
-              ),
+              child: product.imageId != null
+                  ? CachedNetworkImage(
+                      imageUrl: appwriteService.getFileViewUrl(product.imageId!),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error),
+                    )
+                  : Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
             ),
           ),
           Padding(
@@ -96,7 +107,7 @@ class ProductCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  product.title,
+                  product.name,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Roboto',
@@ -111,18 +122,12 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4.0),
-                Row(
-                  children: [
-                    const Icon(Icons.store, size: 16.0),
-                    const SizedBox(width: 4.0),
-                    Text(
-                      product.vendor,
-                      style: const TextStyle(
-                        fontSize: 12.0,
-                        fontFamily: 'Roboto',
-                      ),
-                    ),
-                  ],
+                Text(
+                  product.location,
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    fontFamily: 'Roboto',
+                  ),
                 ),
                 const SizedBox(height: 4.0),
                 const Text(
@@ -131,20 +136,6 @@ class ProductCard extends StatelessWidget {
                     fontSize: 12.0,
                     fontFamily: 'Roboto',
                   ),
-                ),
-                const SizedBox(height: 4.0),
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16.0, color: Colors.amber),
-                    const SizedBox(width: 4.0),
-                    Text(
-                      '${product.rating} (${product.reviewCount})',
-                      style: const TextStyle(
-                        fontSize: 12.0,
-                        fontFamily: 'Roboto',
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
