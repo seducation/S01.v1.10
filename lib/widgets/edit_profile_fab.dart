@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/widgets/add_pop_up_menu.dart';
+import 'package:my_app/appwrite_service.dart';
+import 'package:provider/provider.dart';
 
 class EditProfileFAB extends StatelessWidget {
   const EditProfileFAB({super.key});
@@ -13,7 +14,6 @@ class EditProfileFAB extends StatelessWidget {
           builder: (context) => const ChannelSettingsDialog(),
         );
       },
-      backgroundColor: Colors.black,
       child: const Icon(Icons.edit),
     );
   }
@@ -28,23 +28,83 @@ class ChannelSettingsDialog extends StatefulWidget {
 
 class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: "মজার তথ্য");
-  final _handleController = TextEditingController(text: "@RbEducation-c3o");
-  final _descriptionController =
-      TextEditingController(text: "Tjis channel is for education and facts related you...");
+  final _nameController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _handleController = TextEditingController();
+  final _locationController = TextEditingController();
+  String _privacy = 'Public';
+  String? _profileId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final appwriteService =
+          Provider.of<AppwriteService>(context, listen: false);
+      final user = await appwriteService.getUser();
+      if (user != null) {
+        final profiles = await appwriteService.getUserProfiles(ownerId: user.$id);
+        if (profiles.rows.isNotEmpty) {
+          final profile = profiles.rows.first;
+          setState(() {
+            _profileId = profile.$id;
+            _nameController.text = profile.data['name'] ?? '';
+            _bioController.text = profile.data['bio'] ?? '';
+            _handleController.text = profile.data['handle'] ?? '';
+            _locationController.text = profile.data['location'] ?? '';
+            _privacy = profile.data['privacy'] ?? 'Public';
+          });
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
+      );
+    }
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _bioController.dispose();
     _handleController.dispose();
-    _descriptionController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
-  void _saveSettings() {
-    if (_formKey.currentState!.validate()) {
-      // In a real app, you would save these settings.
-      Navigator.of(context).pop();
+  Future<void> _saveSettings() async {
+    if (_formKey.currentState!.validate() && _profileId != null) {
+      try {
+        final appwriteService =
+            Provider.of<AppwriteService>(context, listen: false);
+        await appwriteService.updateProfile(
+          profileId: _profileId!,
+          data: {
+            'name': _nameController.text,
+            'bio': _bioController.text,
+            'handle': _handleController.text,
+            'location': _locationController.text,
+            'privacy': _privacy,
+          },
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile Updated!")),
+        );
+        Navigator.of(context).pop();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile: $e')),
+        );
+      }
     }
   }
 
@@ -53,7 +113,6 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     final theme = Theme.of(context);
 
     return Dialog(
-      backgroundColor: Colors.black,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       insetPadding: const EdgeInsets.all(16),
       child: SizedBox(
@@ -64,43 +123,58 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildHeader(context),
-              const Divider(color: Colors.white12, thickness: 1),
+              const Divider(thickness: 1),
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: <Widget>[
-                      const ChannelHeader(),
+                      ChannelHeader(handleController: _handleController),
                       const SizedBox(height: 24),
-                      CustomNullTextField(
+                      CustomTextField(
                         controller: _nameController,
                         label: "Name",
                         hintText: "Enter your channel name",
                         icon: Icons.edit,
                       ),
                       const SizedBox(height: 24),
-                      CustomNullTextField(
-                        controller: _handleController,
-                        label: "Handle",
-                        hintText: "Enter your channel handle",
-                        icon: Icons.alternate_email,
-                      ),
-                      const SizedBox(height: 24),
-                      CustomNullTextField(
-                        controller: _descriptionController,
-                        label: "Description",
-                        hintText: "Enter your channel description",
+                      CustomTextField(
+                        controller: _bioController,
+                        label: "Bio",
+                        hintText: "Enter your bio",
                         minLines: 3,
                         isSingleLine: false,
                         icon: Icons.description,
                       ),
                       const SizedBox(height: 24),
-                      _buildNoteSection(context),
+                      CustomTextField(
+                        controller: _locationController,
+                        label: "Location",
+                        hintText: "Enter your location",
+                        icon: Icons.location_on,
+                      ),
+                      const SizedBox(height: 24),
+                      CustomDropdown(
+                        key: ValueKey(_privacy),
+                        label: "Privacy",
+                        icon: Icons.lock,
+                        value: _privacy,
+                        items: const [
+                          'Public',
+                          'Private',
+                          'Private for some people'
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _privacy = value!;
+                          });
+                        },
+                      ),
                     ],
                   ),
                 ),
               ),
-              const Divider(color: Colors.white12, height: 1),
+              const Divider(height: 1),
               _buildFooter(context, theme),
             ],
           ),
@@ -120,11 +194,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
-              color: Colors.white,
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -140,7 +213,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
         children: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+            child: const Text("Cancel"),
           ),
           const SizedBox(width: 12),
           ElevatedButton(
@@ -155,89 +228,264 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       ),
     );
   }
+}
 
-  Widget _buildNoteSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.only(top: 2.0),
-            child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+class ChannelHeader extends StatelessWidget {
+  final TextEditingController handleController;
+  const ChannelHeader({super.key, required this.handleController});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        SizedBox(
+          height: 100,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Icon(
+                  Icons.image,
+                  color: (theme.iconTheme.color ?? Colors.black).withAlpha(97),
+                  size: 50,
+                ),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(128),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: RichText(
-              text: const TextSpan(
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-                children: <TextSpan>[
-                  TextSpan(
-                    text:
-                        'Changes made to your name and profile picture are visible only on YouTube and not other Google services. ',
+        ),
+        Row(
+          children: [
+            Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white,
+                    child: ClipOval(
+                      child: const Icon(
+                        Icons.person,
+                        size: 50,
+                      ),
+                    ),
                   ),
-                  TextSpan(
-                    text: 'Learn more',
-                    style: TextStyle(color: Colors.blueAccent),
+                ),
+                Positioned(
+                  bottom: 20,
+                  right: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(128),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: CustomTextField(
+                controller: handleController,
+                label: "Handle",
+                hintText: "Enter your handle",
+                icon: Icons.alternate_email,
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 10),
+      ],
     );
   }
 }
 
-class ChannelHeader extends StatelessWidget {
-  const ChannelHeader({super.key});
+// --- Reusable Custom Input Field with NULL Checkbox and Counter ---
+class CustomTextField extends StatefulWidget {
+  final String label;
+  final String hintText;
+  final int? maxLength;
+  final int minLines;
+  final bool isSingleLine;
+  final IconData icon;
+  final TextEditingController controller;
+
+  const CustomTextField({
+    super.key,
+    required this.label,
+    required this.hintText,
+    this.maxLength,
+    this.minLines = 1,
+    this.isSingleLine = false,
+    required this.icon,
+    required this.controller,
+  });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Label Row (title optional)
+        Row(
+          children: [
+            Icon(widget.icon, size: 14, color: theme.iconTheme.color),
+            const SizedBox(width: 6),
+            RichText(
+              text: TextSpan(
+                text: widget.label,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Input Container with Counter
         Container(
-          height: 100,
-          color: Colors.deepPurple[900],
-          child: Stack(
+          decoration: BoxDecoration(
+            color: theme.inputDecorationTheme.fillColor,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Positioned(
-                top: 10,
-                left: 10,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('মজার তথ্য',
-                        style: TextStyle(color: Colors.white38, fontSize: 18)),
-                    SizedBox(height: 5),
-                    Text('Biology',
-                        style:
-                            TextStyle(color: Colors.greenAccent, fontSize: 14)),
+              TextFormField(
+                controller: widget.controller,
+                maxLines: widget.isSingleLine ? 1 : widget.minLines,
+                maxLength: widget.maxLength,
+                style: TextStyle(
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: theme.inputDecorationTheme.hintStyle,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(12),
+                  counterText: "", // Hide default counter provided by maxLength
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a value';
+                  }
+                  return null;
+                },
+              ),
+
+              // Footer inside the input box (Counter)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, right: 8, bottom: 4),
+                child: Row(
+                  children: [
+                    // Custom Counter
+                    if (widget.maxLength != null)
+                      ValueListenableBuilder(
+                        valueListenable: widget.controller,
+                        builder: (context, TextEditingValue value, _) {
+                          return Text(
+                            "${value.text.length}/${widget.maxLength}",
+                            style: theme.textTheme.bodySmall,
+                          );
+                        },
+                      ),
+                    const Spacer(),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20.0),
-          child: CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white,
-            child: ClipOval(
-              child: Container(
-                color: Colors.black,
-                child: const Icon(
-                  Icons.handshake,
-                  color: Colors.white,
-                  size: 50,
-                ),
+      ],
+    );
+  }
+}
+
+class CustomDropdown extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const CustomDropdown({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: theme.iconTheme.color),
+            const SizedBox(width: 6),
+            RichText(
+              text: TextSpan(
+                text: label,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: theme.inputDecorationTheme.fillColor,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: DropdownButtonFormField<String>(
+            initialValue: value,
+            items: items.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: onChanged,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
             ),
           ),
         ),
-        const SizedBox(height: 10),
       ],
     );
   }
