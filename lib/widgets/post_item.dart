@@ -2,6 +2,7 @@ import 'package:any_link_preview/any_link_preview.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/model/post.dart';
+import 'package:my_app/widgets/add_to_playlist.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -155,7 +156,35 @@ class _PostItemState extends State<PostItem> {
               ],
             ),
           ),
-          Icon(Icons.more_horiz, color: Colors.grey[600], size: 22),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'add_to_playlist') {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (context) => const SaveToBottomSheet(),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'add_to_playlist',
+                child: Text('Add to Playlist'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'quality_setting',
+                child: Text('Quality Setting'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'translate_transcript',
+                child: Text('Translate Transcript'),
+              ),
+            ],
+            icon: Icon(Icons.more_horiz, color: Colors.grey[600], size: 22),
+          ),
         ],
       ),
     );
