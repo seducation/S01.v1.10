@@ -29,6 +29,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   String _codeLang = 'javascript';
   bool _isLoading = false;
+  bool _allowUserEditing = false;
+  String? _selectedProfileId;
 
   // Simple markdown-style toolbar actions
   void _wrapSelection(String prefix, [String? suffix]) {
@@ -240,6 +242,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
+
+            _buildAuthoreIdSection(),
           ],
         ),
       ),
@@ -377,6 +382,66 @@ class _AddPostScreenState extends State<AddPostScreen> {
               )),
 
         if (_selectedFiles.isNotEmpty) const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildAuthoreIdSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Allow to share authoreid'),
+            Switch(
+              value: _allowUserEditing,
+              onChanged: (value) {
+                setState(() {
+                  _allowUserEditing = value;
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _selectedProfileId,
+          decoration: const InputDecoration(
+            labelText: 'Overall Profile ID',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: _allowUserEditing
+              ? (String? newValue) {
+                  setState(() {
+                    _selectedProfileId = newValue!;
+                  });
+                }
+              : null,
+          items: <String>['profile1', 'profile2', 'profile3', 'profile4']
+              .map<DropdownMenuItem<String>>((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          enabled: _allowUserEditing,
+          decoration: const InputDecoration(
+            labelText: 'Input 2',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          enabled: _allowUserEditing,
+          decoration: const InputDecoration(
+            labelText: 'Input 3',
+            border: OutlineInputBorder(),
+          ),
+        ),
       ],
     );
   }
