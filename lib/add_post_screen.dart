@@ -46,8 +46,12 @@ class _AddPostScreenState extends State<AddPostScreen> {
       final user = await appwriteService.getUser();
       if (user != null) {
         final response = await appwriteService.getUserProfiles(ownerId: user.$id);
+        final profiles = response.rows.map((row) => Profile.fromMap(row.data, row.$id)).toList();
         setState(() {
-          _profiles = response.rows.map((row) => Profile.fromMap(row.data, row.$id)).toList();
+          _profiles = profiles;
+          if (_profiles.isNotEmpty) {
+            _selectedProfileId = _profiles.first.id;
+          }
         });
       }
     } catch (e) {
@@ -438,7 +442,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
           onChanged: _allowUserEditing
               ? (String? newValue) {
                   setState(() {
-                    _selectedProfileId = newValue!;
+                    if (newValue != null) {
+                      _selectedProfileId = newValue;
+                    }
                   });
                 }
               : null,
