@@ -349,12 +349,11 @@ class AppwriteService {
   }
 
   Future<void> createPost(Map<String, dynamic> postData) async {
-    final profile = await getProfile(postData['profile_id']);
-    final ownerId = profile.data['ownerId'];
-
-    if (ownerId == null) {
-      throw AppwriteException('Could not determine the owner of the profile for this post.', 403);
+    final user = await getUser();
+    if (user == null) {
+      throw AppwriteException('User not authenticated', 401);
     }
+    final ownerId = user.$id;
 
     final data = {
       ...postData,
