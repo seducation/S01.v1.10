@@ -1,22 +1,42 @@
 const { AccessToken } = require('livekit-server-sdk');
 
 module.exports = async (req, res) => {
-  const { roomName, userId } = JSON.parse(req.payload);
-
-  // You can get these from your LiveKit project dashboard
-  const apiKey = req.variables['LIVEKIT_API_KEY'];
-  const apiSecret = req.variables['LIVEKIT_API_SECRET'];
-
-  if (!apiKey || !apiSecret) {
-    res.json({ error: 'LiveKit API key or secret not configured.' }, 400);
-    return;
+  // Check for environment variables.
+  if (
+    !process.env.LIVEKIT_API_KEY ||
+    !process.env.LIVEKIT_API_SECRET ||
+    !process.env.LIVEKIT_URL
+  ) {
+    return res.json({
+      error: 'Function is not configured correctly.'
+    }, 500);
   }
 
-  const at = new AccessToken(apiKey, apiSecret, {
+  // Parse request body for roomName and userId.
+  const { roomName, userId } = JSON.parse(req.payload);
+  if (!roomName || !userId) {
+    return res.json({
+      error: 'Missing `roomName` or `userId` in request body.'
+    }, 400);
+  }
+
+  // Create a new AccessToken
+  const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
     identity: userId,
+    // Token is valid for 10 minutes.
+    ttl: '10m',
   });
 
-  at.addGrant({ roomJoin: true, room: roomName });
+  // Grant permissions to the user.
+  at.addGrant({
+    room: roomName,
+    roomJoin: true,
+    canPublish: true,
+    canSubscribe: true,
+  });
 
-  res.json({ token: at.toJwt() });
+  // Return the token.
+  return res.json({
+    token: at.toJwt(),
+  });
 };
