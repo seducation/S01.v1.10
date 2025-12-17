@@ -7,12 +7,15 @@ class MoreOptionsModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Subscription'),
+        title: const Text('More Options'),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
       body: Column(
         children: <Widget>[
+          const ListTile(
+            title: Text('Subscription', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
           ListTile(
             leading: const Icon(Icons.person_add),
             title: const Text('Send friend request'),
@@ -37,6 +40,22 @@ class MoreOptionsModal extends StatelessWidget {
               );
             },
           ),
+          const Divider(),
+          const ListTile(
+            title: Text('Friend List', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('Friend List'),
+            onTap: () {
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Friend List functionality not implemented yet.')),
+              );
+            },
+          ),
+          const Divider(),
           ListTile(
             leading: const Icon(Icons.volume_off),
             title: const Text('Mute'),
