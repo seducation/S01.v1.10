@@ -1,4 +1,5 @@
 import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -59,17 +60,68 @@ class AuthService with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<User?> signUp(String name, String email, String password) async {
+  /// Starts the signup process by sending an email token (OTP).
+  /// A user record is created in Appwrite, but name and password are NOT set yet.
+  Future<String> startSignUp(String email) async {
     try {
-      // Create the user account
-      await account.create(userId: ID.unique(), name: name, email: email, password: password);
-      
-      // Immediately log the user in to create a session
-      await login(email, password);
-      return _currentUser;
+      final userId = ID.unique();
+      await account.createEmailToken(userId: userId, email: email);
+      return userId;
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Finalizes the signup process by verifying the OTP and setting name/password.
+  Future<void> finalizeSignUp({
+    required String userId,
+    required String secret,
+    required String name,
+    required String password,
+  }) async {
+    try {
+      // 1. Verify OTP and create a session
+      await account.createSession(userId: userId, secret: secret);
+
+      // 2. Set the name
+      await account.updateName(name: name);
+
+      // 3. Set the password (this requires an active session)
+      await account.updatePassword(password: password);
+
+      // 4. Update local state
+      await init();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- OTP Flow (for other purposes like MFA or Login) ---
+
+  /// Sends an OTP to the specified email.
+  Future<void> sendOTP(String email, {String userId = 'current'}) async {
+    await account.createEmailToken(userId: userId, email: email);
+  }
+
+  // --- MFA Flow ---
+
+  /// Enables or disables MFA.
+  Future<void> setMfa(bool enabled) async {
+    await account.updateMFA(mfa: enabled);
+  }
+
+  /// Initiates an MFA challenge.
+  Future<String> startMFAChallenge() async {
+    final challenge = await account.createMFAChallenge(
+      factor: AuthenticationFactor.email,
+    );
+    return challenge.$id;
+  }
+
+  /// Completes an MFA challenge.
+  Future<void> verifyMFAChallenge(String challengeId, String secret) async {
+    await account.updateMFAChallenge(challengeId: challengeId, otp: secret);
+    await init(); // Update login state
   }
 
   Future<User?> getCurrentUser() async {

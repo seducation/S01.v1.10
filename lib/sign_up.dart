@@ -19,9 +19,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-      ),
+      appBar: AppBar(title: const Text('Sign Up')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -32,39 +30,54 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name'),
-                validator: (value) => value!.isEmpty ? 'Please enter your name' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter your name' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) => value!.isEmpty ? 'Please enter your email' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter your email' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
-                validator: (value) => value!.isEmpty ? 'Please enter your password' : null,
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter your password' : null,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     try {
-                      final user = await Provider.of<AuthService>(context, listen: false).signUp(
-                        _nameController.text,
-                        _emailController.text,
-                        _passwordController.text,
+                      final authService = Provider.of<AuthService>(
+                        context,
+                        listen: false,
                       );
-                      if (context.mounted && user != null) {
-                        context.go('/home');
+                      // Start the signup process (sends OTP)
+                      final userId = await authService.startSignUp(
+                        _emailController.text,
+                      );
+
+                      if (context.mounted) {
+                        context.go(
+                          '/verify-otp',
+                          extra: {
+                            'userId': userId,
+                            'email': _emailController.text,
+                            'name': _nameController.text,
+                            'password': _passwordController.text,
+                          },
+                        );
                       }
                     } catch (e) {
-                      if(context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(e.toString())));
                       }
                     }
                   }

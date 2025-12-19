@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:typed_data';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:appwrite/enums.dart';
 import 'package:my_app/environment.dart';
 import 'community_screen_widget/poster_item.dart';
 import 'package:my_app/model/post.dart';
@@ -821,6 +822,57 @@ class AppwriteService {
         Query.equal('profileId', profileIds),
         Query.greaterThan('expiresAt', DateTime.now().toIso8601String()),
       ],
+    );
+  }
+
+  // --- OTP & MFA ---
+
+  /// Creates an email token (OTP) for passwordless login or verification.
+  Future<models.Token> createEmailToken({
+    required String userId,
+    required String email,
+    bool phrase = false,
+  }) async {
+    return await _account.createEmailToken(
+      userId: userId,
+      email: email,
+      phrase: phrase,
+    );
+  }
+
+  /// Creates a session using the OTP (secret) received via email.
+  Future<models.Session> createSessionWithToken({
+    required String userId,
+    required String secret,
+  }) async {
+    return await _account.createSession(userId: userId, secret: secret);
+  }
+
+  /// Updates the Multi-Factor Authentication status for the current user.
+  Future<models.User> updateMFA({required bool mfa}) async {
+    return await _account.updateMFA(mfa: mfa);
+  }
+
+  /// Lists available MFA factors for the current user.
+  Future<models.MfaFactors> listMFAFactors() async {
+    return await _account.listMFAFactors();
+  }
+
+  /// Creates an MFA challenge using a specific factor (e.g., 'email').
+  Future<models.MfaChallenge> createMFAChallenge({
+    required AuthenticationFactor factor,
+  }) async {
+    return await _account.createMFAChallenge(factor: factor);
+  }
+
+  /// Completes an MFA challenge using the secret (OTP).
+  Future<models.Session> updateMFAChallenge({
+    required String challengeId,
+    required String secret,
+  }) async {
+    return await _account.updateMFAChallenge(
+      challengeId: challengeId,
+      otp: secret,
     );
   }
 }

@@ -24,6 +24,7 @@ import 'community_screen_widget/community_screen.dart';
 import 'lens_screen.dart';
 import 'sign_in.dart';
 import 'sign_up.dart';
+import 'otp_verification_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'setting_personal_info_screen.dart';
@@ -96,17 +97,18 @@ GoRouter _createRouter(AuthService authService) {
     refreshListenable: authService,
     redirect: (BuildContext context, GoRouterState state) {
       final loggedIn = authService.isLoggedIn;
-      final isLoggingIn =
+      final isPublicRoute =
           state.matchedLocation == '/signin' ||
-          state.matchedLocation == '/signup';
+          state.matchedLocation == '/signup' ||
+          state.matchedLocation == '/verify-otp';
 
-      // If the user is logged in and trying to access a login screen, redirect to home.
-      if (loggedIn && isLoggingIn) {
+      // If the user is logged in and trying to access a public screen, redirect to home.
+      if (loggedIn && isPublicRoute) {
         return '/';
       }
 
-      // If the user is not logged in and not on a login screen, redirect to signin.
-      if (!loggedIn && !isLoggingIn) {
+      // If the user is not logged in and not on a public screen, redirect to signin.
+      if (!loggedIn && !isPublicRoute) {
         return '/signin';
       }
 
@@ -135,6 +137,18 @@ GoRouter _createRouter(AuthService authService) {
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/verify-otp',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, String>;
+          return OTPVerificationScreen(
+            userId: extra['userId']!,
+            email: extra['email']!,
+            name: extra['name']!,
+            password: extra['password']!,
+          );
+        },
       ),
       GoRoute(
         path: '/where_to_post',
