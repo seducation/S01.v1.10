@@ -55,7 +55,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       fn(); // Perform the state change (add/remove tab)
       _initializeController(); // Create a new controller
       // Try to restore the previous index if it's still valid
-      _mainTabController.index = (oldIndex < _tabs.length) ? oldIndex : _tabs.length - 1;
+      _mainTabController.index = (oldIndex < _tabs.length)
+          ? oldIndex
+          : _tabs.length - 1;
     });
   }
 
@@ -80,7 +82,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-
   @override
   void dispose() {
     _mainTabController.dispose();
@@ -100,10 +101,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             final context = key.currentContext;
             if (context != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                Scrollable.ensureVisible(context,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    alignment: 0.5);
+                Scrollable.ensureVisible(
+                  context,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  alignment: 0.5,
+                );
               });
             }
           }
@@ -122,21 +125,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 key: _tabKeys[0],
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 alignment: Alignment.center,
-                child: Text('shorts', style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: _mainTabController.index == 0
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                  color: _mainTabController.index == 0
-                      ? selectedColor
-                      : unselectedColor,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 2.0,
-                      color: Colors.black.withAlpha(128),
-                      offset: const Offset(1.0, 1.0),
-                    ),
-                  ],
-                )),
+                child: Text(
+                  'shorts',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: _mainTabController.index == 0
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: _mainTabController.index == 0
+                        ? selectedColor
+                        : unselectedColor,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 2.0,
+                        color: Colors.black.withAlpha(128),
+                        offset: const Offset(1.0, 1.0),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             Expanded(
@@ -146,31 +152,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Row(
                   children: List.generate(_tabs.length - 1, (index) {
                     final tabIndex = index + 1;
-                    final isSelected =
-                        _mainTabController.index == tabIndex;
+                    final isSelected = _mainTabController.index == tabIndex;
                     return InkWell(
-                      onTap: () =>
-                          _mainTabController.animateTo(tabIndex),
+                      onTap: () => _mainTabController.animateTo(tabIndex),
                       child: Container(
                         key: _tabKeys[tabIndex],
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         alignment: Alignment.center,
-                        child: Text(_tabs[tabIndex], style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? selectedColor
-                              : unselectedColor,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 2.0,
-                              color: Colors.black.withAlpha(128),
-                              offset: const Offset(1.0, 1.0),
-                            ),
-                          ],
-                        )),
+                        child: Text(
+                          _tabs[tabIndex],
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected ? selectedColor : unselectedColor,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 2.0,
+                                color: Colors.black.withAlpha(128),
+                                offset: const Offset(1.0, 1.0),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   }),
@@ -222,70 +226,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withAlpha(179),
-                      Colors.transparent,
-                    ],
+                    colors: [Colors.black.withAlpha(179), Colors.transparent],
                   ),
                 ),
               ),
-              title: SizedBox(
-                height: kToolbarHeight,
-                child: tabBarWidget,
-              ),
+              title: SizedBox(height: kToolbarHeight, child: tabBarWidget),
               titleSpacing: 0,
               actions: [
-                IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search')),
                 IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      context.go('/add_post');
-                    }),
+                  icon: const Icon(Icons.search),
+                  onPressed: () => context.go('/search'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    context.go('/add_post');
+                  },
+                ),
               ],
             ),
             body: tabBarView,
           );
         } else {
           final String currentTitle = (_mainTabController.index < 2)
-              ? 'my app'
+              ? 'gvone'
               : _tabs[_mainTabController.index];
           final appBar = AppBar(
             leadingWidth: 112,
             leading: Row(
               children: [
-                IconButton(icon: const Icon(Icons.menu), onPressed: () {
-                   context.go('/profile');
-                }),
                 IconButton(
-                    icon: const Icon(Icons.shopping_cart_outlined),
-                    tooltip: 'Shop',
-                    onPressed: () {}),
+                  icon: const Icon(Icons.menu),
+                  onPressed: () {
+                    context.go('/profile');
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.shopping_cart_outlined),
+                  tooltip: 'Shop',
+                  onPressed: () {},
+                ),
               ],
             ),
             title: Text(currentTitle),
             centerTitle: true,
             actions: [
-              IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/bottom_nav_search')),
               IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () {
-                    context.go('/add_post');
-                  }),
+                icon: const Icon(Icons.search),
+                onPressed: () => context.go('/bottom_nav_search'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  context.go('/add_post');
+                },
+              ),
             ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(kToolbarHeight),
               child: ClipRect(
-                child: SizedBox(
-                  height: kToolbarHeight,
-                  child: tabBarWidget,
-                ),
+                child: SizedBox(height: kToolbarHeight, child: tabBarWidget),
               ),
             ),
           );
-          return Scaffold(
-            appBar: appBar,
-            body: tabBarView,
-          );
+          return Scaffold(appBar: appBar, body: tabBarView);
         }
       },
     );
