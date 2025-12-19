@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:appwrite/appwrite.dart';
 import 'package:my_app/appwrite_service.dart';
 import 'package:my_app/widgets/edit_profile_fab.dart';
 import 'package:provider/provider.dart';
@@ -79,25 +78,6 @@ class _CreateRowDialogState extends State<CreateRowDialog> {
             ),
           );
           return;
-        }
-
-        // Pre-check: See if a profile with the User's ID already exists
-        try {
-          await appwriteService.getProfile(user.$id);
-          // If the call succeeds, it means a profile already exists
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('A profile already exists for this account.'),
-            ),
-          );
-          return;
-        } catch (e) {
-          // If we get a 404, we can proceed to create
-          if (e is! AppwriteException || e.code != 404) {
-            // Some other error occurred during pre-check
-            rethrow;
-          }
         }
 
         if (_selectedType == 'profile') {

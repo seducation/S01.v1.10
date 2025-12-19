@@ -127,7 +127,7 @@ class AppwriteService {
     return await _db.createRow(
       databaseId: Environment.appwriteDatabaseId,
       tableId: profilesCollection,
-      rowId: ownerId,
+      rowId: ID.unique(),
       data: {
         'ownerId': ownerId,
         'name': name,
