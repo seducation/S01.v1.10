@@ -4,7 +4,7 @@ import 'package:my_app/model/post.dart';
 import 'package:provider/provider.dart';
 import 'package:appwrite/appwrite.dart';
 
-import './hmv_features_tabscreen.dart';
+import './widgets/post_item.dart';
 import 'model/profile.dart';
 
 class HMVFollowingTabscreen extends StatefulWidget {
@@ -19,6 +19,7 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
   List<Post>? _posts;
   bool _isLoading = true;
   String? _error;
+  String? _profileId;
 
   @override
   void initState() {
@@ -36,6 +37,10 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
           _isLoading = false;
         });
         return;
+      }
+      final profiles = await appwriteService.getUserProfiles(ownerId: user.$id);
+      if(profiles.rows.isNotEmpty){
+         _profileId = profiles.rows.first.$id;
       }
 
       final followingProfiles = await appwriteService.getFollowingProfiles(userId: user.$id);
@@ -125,12 +130,11 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
       );
     }
 
-    return ListView.separated(
+    return ListView.builder(
       itemCount: _posts!.length,
-      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFE0E0E0)),
       itemBuilder: (context, index) {
         final post = _posts![index];
-        return PostWidget(post: post, allPosts: _posts!);
+        return PostItem(post: post, profileId: _profileId ?? '');
       },
     );
   }

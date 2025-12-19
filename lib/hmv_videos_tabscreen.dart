@@ -3,7 +3,7 @@ import 'package:my_app/appwrite_service.dart';
 import 'package:my_app/model/post.dart';
 import 'package:provider/provider.dart';
 
-import 'hmv_features_tabscreen.dart';
+import 'widgets/post_item.dart';
 import 'model/profile.dart';
 
 class HMVVideosTabscreen extends StatefulWidget {
@@ -17,6 +17,7 @@ class _HMVVideosTabscreenState extends State<HMVVideosTabscreen> {
   late AppwriteService appwriteService;
   List<Post>? _posts;
   bool _isLoading = true;
+  String? _profileId;
 
   @override
   void initState() {
@@ -27,6 +28,13 @@ class _HMVVideosTabscreenState extends State<HMVVideosTabscreen> {
 
   Future<void> _fetchPosts() async {
     try {
+      final user = await appwriteService.getUser();
+      if(user != null){
+        final profiles = await appwriteService.getUserProfiles(ownerId: user.$id);
+        if(profiles.rows.isNotEmpty){
+           _profileId = profiles.rows.first.$id;
+        }
+      }
       final postsResponse = await appwriteService.getPosts();
       final profilesResponse = await appwriteService.getProfiles();
 
@@ -40,11 +48,20 @@ class _HMVVideosTabscreenState extends State<HMVVideosTabscreen> {
           return null;
         }
 
-        PostType type = PostType.text;
+        PostType type;
+        try {
+          type = PostType.values.firstWhere((e) => e.toString() == 'PostType.${row.data['type']}');
+        } catch (e) {
+          type = PostType.text; 
+        }
+
+        if (type != PostType.video) {
+          return null;
+        }
+
         String? mediaUrl;
         final fileIds = row.data['file_ids'] as List?;
         if (fileIds != null && fileIds.isNotEmpty) {
-          type = PostType.image;
           mediaUrl = appwriteService.getFileViewUrl(fileIds.first);
         }
 
@@ -91,16 +108,15 @@ class _HMVVideosTabscreenState extends State<HMVVideosTabscreen> {
 
     if (_posts == null || _posts!.isEmpty) {
       return const Center(
-        child: Text("No posts available."),
+        child: Text("No videos available."),
       );
     }
 
-    return ListView.separated(
+    return ListView.builder(
       itemCount: _posts!.length,
-      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFE0E0E0)),
       itemBuilder: (context, index) {
         final post = _posts![index];
-        return PostWidget(post: post, allPosts: _posts!);
+        return PostItem(post: post, profileId: _profileId ?? '');
       },
     );
   }
