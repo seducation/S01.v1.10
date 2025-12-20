@@ -37,7 +37,9 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
     });
     try {
       final appwriteService = context.read<AppwriteService>();
-      final response = await appwriteService.getFollowingProfiles(userId: userId);
+      final response = await appwriteService.getFollowingProfiles(
+        userId: userId,
+      );
       if (mounted) {
         setState(() {
           _followingProfiles = response.rows
@@ -68,9 +70,9 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
       return response.rows.map((row) => Profile.fromRow(row)).toList();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching profiles: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error fetching profiles: $e')));
       }
       return [];
     }
@@ -89,7 +91,9 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
   Future<void> _publishPosts() async {
     if (_selectedProfileIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one account to post to.')),
+        const SnackBar(
+          content: Text('Please select at least one account to post to.'),
+        ),
       );
       return;
     }
@@ -103,13 +107,18 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
     if (!mounted) return;
 
     final allProfiles = [...userProfiles, ..._followingProfiles];
-    
+
     for (final profileId in _selectedProfileIds) {
       final profile = allProfiles.firstWhere((p) => p.id == profileId);
       if (profile.type == 'thread') {
-        if (!widget.postData.containsKey('authoreid') || (widget.postData['authoreid'] as List).isEmpty) {
+        if (!widget.postData.containsKey('authoreid') ||
+            (widget.postData['authoreid'] as List).isEmpty) {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('You must allow sharing your author ID to post to a thread.')),
+            const SnackBar(
+              content: Text(
+                'You must allow sharing your author ID to post to a thread.',
+              ),
+            ),
           );
           return;
         }
@@ -121,15 +130,16 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
     });
 
     try {
-      final postData = {
-        ...widget.postData,
-        'profile_id': _selectedProfileIds,
-      };
+      final postData = {...widget.postData, 'profile_id': _selectedProfileIds};
       await appwriteService.createPost(postData);
 
       if (mounted) {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Successfully posted to ${_selectedProfileIds.length} account(s).')),
+          SnackBar(
+            content: Text(
+              'Successfully posted to ${_selectedProfileIds.length} account(s).',
+            ),
+          ),
         );
         router.go('/');
       }
@@ -172,7 +182,7 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
               ),
             );
           }
-          
+
           List<Widget> listItems = [];
 
           if (profiles.isNotEmpty) {
@@ -185,31 +195,39 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
                 ),
               ),
             );
-            listItems.addAll(profiles.map((profile) {
-              final isSelected = _selectedProfileIds.contains(profile.id);
-              return CheckboxListTile(
-                secondary: CircleAvatar(
-                  backgroundImage: NetworkImage(profile.profileImageUrl ?? ''),
-                ),
-                title: Text(profile.name),
-                subtitle: Text(profile.type),
-                value: isSelected,
-                onChanged: (bool? value) {
-                  if (value != null) {
-                    _toggleProfileSelection(profile.id);
-                  }
-                },
-              );
-            }).toList());
+            listItems.addAll(
+              profiles.map((profile) {
+                final isSelected = _selectedProfileIds.contains(profile.id);
+                return CheckboxListTile(
+                  secondary: CircleAvatar(
+                    backgroundImage: NetworkImage(
+                      profile.profileImageUrl ?? '',
+                    ),
+                  ),
+                  title: Text(profile.name),
+                  subtitle: Text(profile.type),
+                  value: isSelected,
+                  onChanged: (bool? value) {
+                    if (value != null) {
+                      _toggleProfileSelection(profile.id);
+                    }
+                  },
+                );
+              }).toList(),
+            );
           }
 
           if (_isLoadingFollowing) {
-            listItems.add(const Center(child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            )));
+            listItems.add(
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            );
           } else if (_followingProfiles.isNotEmpty) {
-             listItems.add(
+            listItems.add(
               Padding(
                 padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
                 child: Text(
@@ -218,34 +236,38 @@ class _WhereToPostScreenState extends State<WhereToPostScreen> {
                 ),
               ),
             );
-            listItems.addAll(_followingProfiles.map((profile) {
-              final isSelected = _selectedProfileIds.contains(profile.id);
-              return CheckboxListTile(
-                secondary: CircleAvatar(
-                  backgroundImage: NetworkImage(profile.profileImageUrl ?? ''),
-                ),
-                title: Text(profile.name),
-                subtitle: Text(profile.type),
-                value: isSelected,
-                onChanged: (bool? value) {
-                  if (value != null) {
-                    _toggleProfileSelection(profile.id);
-                  }
-                },
-              );
-            }).toList());
+            listItems.addAll(
+              _followingProfiles.map((profile) {
+                final isSelected = _selectedProfileIds.contains(profile.id);
+                return CheckboxListTile(
+                  secondary: CircleAvatar(
+                    backgroundImage: NetworkImage(
+                      profile.profileImageUrl ?? '',
+                    ),
+                  ),
+                  title: Text(profile.name),
+                  subtitle: Text(profile.type),
+                  value: isSelected,
+                  onChanged: (bool? value) {
+                    if (value != null) {
+                      _toggleProfileSelection(profile.id);
+                    }
+                  },
+                );
+              }).toList(),
+            );
           }
 
-          return ListView(
-            children: listItems,
-          );
+          return ListView(children: listItems);
         },
       ),
       persistentFooterButtons: [
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _selectedProfileIds.isEmpty || _isPublishing ? null : _publishPosts,
+            onPressed: _selectedProfileIds.isEmpty || _isPublishing
+                ? null
+                : _publishPosts,
             child: _isPublishing
                 ? const SizedBox(
                     height: 20,
