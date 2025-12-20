@@ -121,12 +121,22 @@ class _SrvFollowingTabscreenState extends State<SrvFollowingTabscreen> {
           mediaUrl = appwriteService.getFileViewUrl(fileIds.first);
         }
 
+        String contentText = row.data['caption'] ?? '';
+        final originalAuthorId = row.data['author_id'] as String?;
+        if (originalAuthorId != null && originalAuthorId != postAuthorProfileId) {
+            final originalAuthorProfile = profilesMap[originalAuthorId];
+            if (originalAuthorProfile != null) {
+                final originalAuthorName = originalAuthorProfile.name;
+                contentText = 'by $originalAuthorName: $contentText';
+            }
+        }
+
         return Post(
           id: row.$id,
           author: updatedAuthor,
           timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
           linkTitle: row.data['titles'] as String? ?? '',
-          contentText: row.data['caption'] as String? ?? '',
+          contentText: contentText,
           type: type,
           mediaUrl: mediaUrl,
           linkUrl: row.data['linkUrl'] as String?,

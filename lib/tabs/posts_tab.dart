@@ -85,11 +85,21 @@ class _PostsTabState extends State<PostsTab> {
           views: row.data['views'] ?? 0,
         );
 
+        String contentText = row.data['caption'] ?? '';
+        final originalAuthorId = row.data['author_id'] as String?;
+        if (originalAuthorId != null && originalAuthorId != profileId) {
+            final originalAuthorProfileData = profilesMap[originalAuthorId];
+            if (originalAuthorProfileData != null) {
+                final originalAuthorName = originalAuthorProfileData['name'];
+                contentText = 'by $originalAuthorName: $contentText';
+            }
+        }
+
         return Post(
           id: row.$id,
           author: updatedAuthor,
           timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
-          contentText: row.data['caption'] ?? '',
+          contentText: contentText,
           mediaUrl: mediaUrl,
           type: postType,
           stats: postStats,
