@@ -22,7 +22,7 @@ class HMVFeaturesTabscreen extends StatefulWidget {
 
 class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
   late AppwriteService _appwriteService;
-  late List<Post> _posts;
+  List<Post> _posts = [];
   bool _isLoading = true;
   String? _profileId;
 
