@@ -32,6 +32,9 @@ class SrvFeatureTabscreen extends StatelessWidget {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
+        if (!snapshot.hasData) {
+          return const Center(child: Text('Could not load profile data.'));
+        }
         final profiles = snapshot.data as List<dynamic>;
         final profileId = profiles.isNotEmpty ? profiles[0].$id : '';
         return ListView.builder(
@@ -47,14 +50,14 @@ class SrvFeatureTabscreen extends StatelessWidget {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const SizedBox.shrink();
                   }
-                  if (snapshot.hasError) {
+                  if (snapshot.hasError || !snapshot.hasData) {
                     return const SizedBox.shrink();
                   }
                   final author = snapshot.data!;
                   final post = Post(
                     id: item['data']['\$id'],
                     author: author,
-                    timestamp: DateTime.parse(item['data']['timestamp']),
+                    timestamp: DateTime.tryParse(item['data']['timestamp'] ?? '') ?? DateTime.now(),
                     contentText: item['data']['caption'] ?? '',
                     stats: PostStats(
                       likes: item['data']['likes'] ?? 0,
