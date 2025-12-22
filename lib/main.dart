@@ -10,6 +10,7 @@ import 'package:my_app/chat_screen.dart';
 import 'package:my_app/environment.dart';
 import 'package:my_app/profile_page.dart';
 import 'package:my_app/results_searches.dart';
+import 'package:my_app/sent_post_screen.dart';
 import 'package:my_app/where_to_post.dart';
 import 'package:my_app/where_to_post_story.dart';
 import 'package:provider/provider.dart';
@@ -253,6 +254,14 @@ GoRouter _createRouter(AuthService authService) {
       GoRoute(
         path: '/setting_support',
         builder: (context, state) => const SettingSupportScreen(),
+      ),
+       GoRoute(
+        path: '/sent_post',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final imagePaths = extra?['images'] as List<String>? ?? [];
+          return SentPostScreen(imagePaths: imagePaths);
+        },
       ),
     ],
   );

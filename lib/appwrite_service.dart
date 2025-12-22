@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
@@ -326,6 +327,22 @@ class AppwriteService {
       // The root cause is the server-side permissions.
       return newDocument;
     }
+  }
+
+  Future<void> sendOneTimeMessage({
+    required String senderId,
+    required String receiverId,
+    required String imagePath,
+  }) async {
+    final file = await uploadFile(
+        bytes: await File(imagePath).readAsBytes(),
+        filename: imagePath.split('/').last);
+
+    await sendMessage(
+        senderId: senderId,
+        receiverId: receiverId,
+        message: getFileViewUrl(file.$id),
+       );
   }
 
   Future<models.RowList> getMessages({

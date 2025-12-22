@@ -415,7 +415,7 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
 
           // Right: Send Button
-          SendButton(capturedImages: _capturedImages),
+          SendButton(capturedImages: _capturedImages.map((e) => e.path).toList()),
         ],
       ),
     );
@@ -435,7 +435,7 @@ class _CameraScreenState extends State<CameraScreen> {
 }
 
 class SendButton extends StatelessWidget {
-  final List<XFile> capturedImages;
+  final List<String> capturedImages;
 
   const SendButton({super.key, required this.capturedImages});
 

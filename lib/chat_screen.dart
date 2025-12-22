@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/add_post_screen.dart';
 import 'package:my_app/appwrite_service.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:my_app/one_time_message_screen.dart';
 import 'package:my_app/profile_screen.dart';
 import 'package:my_app/search_screen.dart';
 import 'package:provider/provider.dart';
@@ -154,6 +155,41 @@ class _ChatScreenState extends State<ChatScreen> {
                             itemBuilder: (context, index) {
                               final message = _messages[index];
                               final isMe = message.data['senderId'] == _currentUser!.$id;
+                              final isOtm = message.data['isOtm'] ?? false;
+
+                              if (isOtm) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => OneTimeMessageScreen(
+                                          message: message,
+                                        ),
+                                      ),
+                                    ).then((_) => _fetchMessages());
+                                  },
+                                  child: Align(
+                                    alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8.0),
+                                      margin: const EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        color: isMe ? Colors.blue : Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(8.0),
+                                      ),
+                                      child: const Text(
+                                        'Tap to view one-time message',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
                               return Align(
                                 alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                                 child: Container(
