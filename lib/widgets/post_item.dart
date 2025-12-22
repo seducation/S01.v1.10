@@ -29,6 +29,7 @@ class _PostItemState extends State<PostItem> {
   late AppwriteService _appwriteService;
   SharedPreferences? _prefs;
   VideoPlayerController? _controller;
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -40,8 +41,10 @@ class _PostItemState extends State<PostItem> {
     _commentCount = widget.post.stats.comments;
     _initializeState();
 
-    if (widget.post.type == PostType.video && widget.post.mediaUrl != null) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrl!))
+    if (widget.post.type == PostType.video &&
+        widget.post.mediaUrls != null &&
+        widget.post.mediaUrls!.isNotEmpty) {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrls!.first))
         ..initialize().then((_) {
           if (mounted) {
             setState(() {});
@@ -104,7 +107,8 @@ class _PostItemState extends State<PostItem> {
     }
 
     try {
-      await _appwriteService.updatePostLikes(widget.post.id, newLikeCount, widget.post.timestamp.toIso8601String());
+      await _appwriteService.updatePostLikes(
+          widget.post.id, newLikeCount, widget.post.timestamp.toIso8601String());
       await _prefs!.setBool(widget.post.id, newLikedState);
     } catch (e) {
       if (mounted) {
@@ -141,9 +145,11 @@ class _PostItemState extends State<PostItem> {
 
     try {
       if (newSavedState) {
-        await _appwriteService.savePost(profileId: widget.profileId, postId: widget.post.id);
+        await _appwriteService.savePost(
+            profileId: widget.profileId, postId: widget.post.id);
       } else {
-        await _appwriteService.unsavePost(profileId: widget.profileId, postId: widget.post.id);
+        await _appwriteService.unsavePost(
+            profileId: widget.profileId, postId: widget.post.id);
       }
       await _prefs!.setBool('saved_${widget.post.id}', newSavedState);
     } catch (e) {
@@ -196,7 +202,8 @@ class _PostItemState extends State<PostItem> {
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               child: Text(
                 widget.post.linkTitle!,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
               ),
             ),
           Padding(
@@ -224,11 +231,15 @@ class _PostItemState extends State<PostItem> {
                 GestureDetector(
                   onTap: () {
                     setState(() {
-                      _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
+                      _controller!.value.isPlaying
+                          ? _controller!.pause()
+                          : _controller!.play();
                     });
                   },
                   child: Icon(
-                    _controller!.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                    _controller!.value.isPlaying
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_filled,
                     color: const Color.fromRGBO(255, 255, 255, 0.7),
                     size: 60,
                   ),
@@ -237,7 +248,10 @@ class _PostItemState extends State<PostItem> {
             ),
           );
         } else {
-          return Container(height: 250, color: Colors.grey[300], child: const Center(child: CircularProgressIndicator()));
+          return Container(
+              height: 250,
+              color: Colors.grey[300],
+              child: const Center(child: CircularProgressIndicator()));
         }
       case PostType.linkPreview:
         return _buildLinkPreview(context);
@@ -248,8 +262,10 @@ class _PostItemState extends State<PostItem> {
 
   Widget _buildHeader(BuildContext context) {
     final handleColor = Colors.grey[600];
-    final bool hasAuthors = widget.post.authorIds != null && widget.post.authorIds!.isNotEmpty;
-    final bool hasMultipleProfiles = widget.post.profileIds != null && widget.post.profileIds!.length > 1;
+    final bool hasAuthors =
+        widget.post.authorIds != null && widget.post.authorIds!.isNotEmpty;
+    final bool hasMultipleProfiles =
+        widget.post.profileIds != null && widget.post.profileIds!.length > 1;
 
     // Show hamburger icon if there is at least one author OR more than one profile.
     final bool showHamburger = hasAuthors || hasMultipleProfiles;
@@ -265,7 +281,9 @@ class _PostItemState extends State<PostItem> {
         if (!showHamburger) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => ProfilePageScreen(profileId: widget.post.author.id)),
+            MaterialPageRoute(
+                builder: (context) =>
+                    ProfilePageScreen(profileId: widget.post.author.id)),
           );
         }
         // Tapping the hamburger icon can have a dedicated action in the future.
@@ -281,18 +299,23 @@ class _PostItemState extends State<PostItem> {
                   const SizedBox(width: 8),
                   Text(
                     totalCount.toString(),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87),
                   ),
                 ],
               )
             else
               Builder(builder: (context) {
                 final bool isValidUrl = widget.post.author.profileImageUrl != null &&
-                    (widget.post.author.profileImageUrl!.startsWith('http') || widget.post.author.profileImageUrl!.startsWith('https'));
+                    (widget.post.author.profileImageUrl!.startsWith('http') ||
+                        widget.post.author.profileImageUrl!.startsWith('https'));
                 if (isValidUrl) {
                   return CircleAvatar(
                     radius: 20,
-                    backgroundImage: CachedNetworkImageProvider(widget.post.author.profileImageUrl!),
+                    backgroundImage:
+                        CachedNetworkImageProvider(widget.post.author.profileImageUrl!),
                     backgroundColor: Colors.grey[200],
                   );
                 } else {
@@ -308,7 +331,10 @@ class _PostItemState extends State<PostItem> {
                     children: [
                       Text(
                         widget.post.author.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.black87),
                       ),
                       if (widget.post.originalAuthor != null)
                         Flexible(
@@ -323,7 +349,10 @@ class _PostItemState extends State<PostItem> {
                               Flexible(
                                 child: Text(
                                   widget.post.originalAuthor!.name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.black87),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -347,22 +376,88 @@ class _PostItemState extends State<PostItem> {
   }
 
   Widget _buildImageContent(BuildContext context) {
-    final bool isValidUrl = widget.post.mediaUrl != null && (widget.post.mediaUrl!.startsWith('http') || widget.post.mediaUrl!.startsWith('https'));
-    return GestureDetector(
-      onTap: () {
-        // Handle image tap if necessary
-      },
-      child: isValidUrl
-          ? CachedNetworkImage(
-              imageUrl: widget.post.mediaUrl!,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => AspectRatio(aspectRatio: 1, child: Container(color: Colors.grey[200])),
-              errorWidget: (context, url, error) => AspectRatio(
-                  aspectRatio: 1, child: Container(color: Colors.grey[200], child: const Icon(Icons.error, color: Colors.grey))),
-            )
-          : AspectRatio(aspectRatio: 1, child: Container(color: Colors.grey[200], child: const Icon(Icons.error, color: Colors.grey))),
-    );
+    if (widget.post.mediaUrls == null || widget.post.mediaUrls!.isEmpty) {
+      return AspectRatio(
+          aspectRatio: 1,
+          child: Container(
+              color: Colors.grey[200],
+              child: const Icon(Icons.error, color: Colors.grey)));
+    }
+
+    if (widget.post.mediaUrls!.length > 1) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 400,
+            child: PageView.builder(
+              itemCount: widget.post.mediaUrls!.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return CachedNetworkImage(
+                  imageUrl: widget.post.mediaUrls![index],
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => AspectRatio(
+                      aspectRatio: 1, child: Container(color: Colors.grey[200])),
+                  errorWidget: (context, url, error) => AspectRatio(
+                      aspectRatio: 1,
+                      child: Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.error, color: Colors.grey))),
+                );
+              },
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.post.mediaUrls!.length, (index) {
+              return Container(
+                width: 8.0,
+                height: 8.0,
+                margin:
+                    const EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentPage == index
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey,
+                ),
+              );
+            }),
+          ),
+        ],
+      );
+    } else {
+      final bool isValidUrl = widget.post.mediaUrls!.first.startsWith('http') ||
+          widget.post.mediaUrls!.first.startsWith('https');
+      return GestureDetector(
+        onTap: () {
+          // Handle image tap if necessary
+        },
+        child: isValidUrl
+            ? CachedNetworkImage(
+                imageUrl: widget.post.mediaUrls!.first,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => AspectRatio(
+                    aspectRatio: 1, child: Container(color: Colors.grey[200])),
+                errorWidget: (context, url, error) => AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.error, color: Colors.grey))),
+              )
+            : AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.error, color: Colors.grey))),
+      );
+    }
   }
 
   Widget _buildLinkPreview(BuildContext context) {
@@ -389,7 +484,10 @@ class _PostItemState extends State<PostItem> {
             bodyTextOverflow: TextOverflow.ellipsis,
             titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             bodyStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            errorWidget: Container(height: 100, color: Colors.grey[300], child: const Center(child: Text('Could not load preview'))),
+            errorWidget: Container(
+                height: 100,
+                color: Colors.grey[300],
+                child: const Center(child: Text('Could not load preview'))),
             cache: const Duration(days: 7),
             backgroundColor: Colors.grey[100],
             borderRadius: 8,
@@ -447,7 +545,8 @@ class _PostItemState extends State<PostItem> {
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ],
     );

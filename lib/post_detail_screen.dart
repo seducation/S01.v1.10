@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/model/post.dart';
 import 'package:my_app/tabs/home_tab.dart';
-class PostDetailScreen extends StatelessWidget {
+
+class PostDetailScreen extends StatefulWidget {
   final Post post;
   const PostDetailScreen({super.key, required this.post});
+
+  @override
+  State<PostDetailScreen> createState() => _PostDetailScreenState();
+}
+
+class _PostDetailScreenState extends State<PostDetailScreen> {
+  int _currentPage = 0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text(post.author.name),
+        title: Text(widget.post.author.name),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -19,11 +29,41 @@ class PostDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (post.mediaUrl != null)
-              Image.network(
-                post.mediaUrl!,
-                fit: BoxFit.cover,
-                width: double.infinity,
+            if (widget.post.mediaUrls != null && widget.post.mediaUrls!.isNotEmpty)
+              SizedBox(
+                height: 400,
+                child: PageView.builder(
+                  itemCount: widget.post.mediaUrls!.length,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentPage = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return Image.network(
+                      widget.post.mediaUrls![index],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    );
+                  },
+                ),
+              ),
+            if (widget.post.mediaUrls != null && widget.post.mediaUrls!.length > 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(widget.post.mediaUrls!.length, (index) {
+                  return Container(
+                    width: 8.0,
+                    height: 8.0,
+                    margin: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentPage == index
+                          ? Colors.blueAccent
+                          : Colors.grey,
+                    ),
+                  );
+                }),
               ),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -34,11 +74,11 @@ class PostDetailScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundImage: NetworkImage(post.author.avatarUrl),
+                        backgroundImage: NetworkImage(widget.post.author.avatarUrl),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        post.author.name,
+                        widget.post.author.name,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -49,7 +89,7 @@ class PostDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    post.caption,
+                    widget.post.contentText,
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                   ),
                 ],

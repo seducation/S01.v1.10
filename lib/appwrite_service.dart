@@ -706,15 +706,18 @@ class AppwriteService {
         return [];
       }
 
-      final posts = <Post>[];
-      for (final postId in postIds) {
-        try {
-          final postRow = await _db.getRow(
+      // Fetch all posts concurrently
+      final postFutures = postIds.map((postId) => _db.getRow(
             databaseId: Environment.appwriteDatabaseId,
             tableId: postsCollection,
             rowId: postId,
-          );
+          ));
+      
+      final postRows = await Future.wait(postFutures);
 
+      final posts = <Post>[];
+      for (final postRow in postRows) {
+        try {
           final profile = await getProfile(postRow.data['profile_id']);
           final author = Profile.fromRow(profile);
 
@@ -741,12 +744,15 @@ class AppwriteService {
           );
           posts.add(post);
         } catch (e) {
+          log('Failed to process post: ${postRow.$id}, error: $e');
           // If a single post fails, just continue
         }
       }
       return posts;
-    } catch (e) {
-      return [];
+    } on AppwriteException catch (e) {
+      log('Failed to get playlist: $playlistId, error: $e');
+      // Re-throw the exception to be handled by the UI
+      rethrow;
     }
   }
 

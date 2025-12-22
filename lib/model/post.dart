@@ -14,11 +14,11 @@ class PostStats {
 class Post {
   final String id;
   final Profile author;
-  final Profile? originalAuthor; // Add this line
+  final Profile? originalAuthor;
   final DateTime timestamp;
   final String contentText;
   final PostType type;
-  final String? mediaUrl;
+  final List<String>? mediaUrls; // Changed from mediaUrl to mediaUrls
   final String? linkUrl;
   final String? linkTitle;
   final PostStats stats;
@@ -31,11 +31,11 @@ class Post {
   Post({
     required this.id,
     required this.author,
-    this.originalAuthor, // Add this line
+    this.originalAuthor,
     required this.timestamp,
     required this.contentText,
     this.type = PostType.text,
-    this.mediaUrl,
+    this.mediaUrls, // Changed from mediaUrl to mediaUrls
     this.linkUrl,
     this.linkTitle,
     required this.stats,

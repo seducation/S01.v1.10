@@ -1,38 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/model/post.dart';
+import 'package:my_app/model/profile.dart';
 import 'package:my_app/post_detail_screen.dart';
 import 'package:provider/provider.dart';
-
-enum PostType { text, image, video, podcast, live, short }
-
-class User {
-  final String name;
-  final String avatarUrl;
-
-  User({
-    required this.name,
-    required this.avatarUrl,
-  });
-}
-
-class Post {
-  final String id;
-  final User author;
-  final DateTime timestamp;
-  final String? mediaUrl;
-  final String caption;
-  final PostType type;
-
-  Post({
-    required this.id,
-    required this.author,
-    required this.timestamp,
-    this.mediaUrl,
-    required this.caption,
-    required this.type,
-  });
-}
 
 class HomeTab extends StatefulWidget {
   final String profileId;
@@ -72,41 +44,35 @@ class _HomeTabState extends State<HomeTab> {
 
         final creatorProfileData = profilesMap[profileId];
         if (creatorProfileData == null) {
-          return null; 
+          return null;
         }
-        final authorName = creatorProfileData['name'];
-        final profileImageUrl = creatorProfileData['profileImageUrl'];
-        final author = User(
-          name: authorName,
-          avatarUrl: profileImageUrl != null && profileImageUrl.isNotEmpty
-              ? _appwriteService.getFileViewUrl(profileImageUrl)
-              : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-        );
+
+        final author = Profile.fromMap(creatorProfileData, profileId);
+
         final fileIdsData = row.data['file_ids'];
         final List<String> fileIds =
             fileIdsData is List ? List<String>.from(fileIdsData.map((id) => id.toString())) : [];
         String? postTypeString = row.data['type'];
         if (postTypeString == null && fileIds.isNotEmpty) {
-          postTypeString = 'image'; 
+          postTypeString = 'image';
         }
         final postType = _getPostType(postTypeString);
-        String? mediaUrl;
+        List<String> mediaUrls = [];
         if (fileIds.isNotEmpty) {
           if (postType == PostType.image || postType == PostType.video) {
-            mediaUrl = _appwriteService.getFileViewUrl(fileIds.first);
+            mediaUrls = fileIds.map((id) => _appwriteService.getFileViewUrl(id)).toList();
           }
         }
         return Post(
-          id: row.$id,
-          author: author,
-          timestamp:
-              DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
-          mediaUrl: mediaUrl,
-          caption: row.data['caption'],
-          type: postType,
-        );
+            id: row.$id,
+            author: author,
+            timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
+            mediaUrls: mediaUrls,
+            contentText: row.data['caption'],
+            type: postType,
+            stats: PostStats());
       }).where((post) => post != null).cast<Post>().toList();
-      final imagePosts = posts.where((p) => p.mediaUrl != null).toList();
+      final imagePosts = posts.where((p) => p.mediaUrls?.isNotEmpty ?? false).toList();
       imagePosts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       if (mounted) {
         setState(() {
@@ -130,12 +96,6 @@ class _HomeTabState extends State<HomeTab> {
         return PostType.image;
       case 'video':
         return PostType.video;
-      case 'podcast':
-        return PostType.podcast;
-      case 'live':
-        return PostType.live;
-      case 'short':
-        return PostType.short;
       default:
         return PostType.text;
     }
@@ -155,7 +115,7 @@ class _HomeTabState extends State<HomeTab> {
               itemCount: _posts.length,
               itemBuilder: (context, index) {
                 final post = _posts[index];
-                if (post.mediaUrl == null) {
+                if (post.mediaUrls == null || post.mediaUrls!.isEmpty) {
                   return Container(color: Colors.grey[800]);
                 }
                 return GestureDetector(
@@ -180,10 +140,9 @@ class _HomeTabState extends State<HomeTab> {
                             )
                           : null,
                       child: CachedNetworkImage(
-                        imageUrl: post.mediaUrl!,
+                        imageUrl: post.mediaUrls!.first,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: Colors.white),
+                        placeholder: (context, url) => Container(color: Colors.white),
                         errorWidget: (context, url, error) {
                           return Container(color: Colors.grey[900]);
                         },
