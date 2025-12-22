@@ -106,6 +106,8 @@ class _VideosTabState extends State<VideosTab> {
       case 'image':
         return PostType.image;
       case 'video':
+      case 'mp4':
+      case 'movie':
         return PostType.video;
       default:
         return PostType.text;
