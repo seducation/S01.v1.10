@@ -229,16 +229,25 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
   }
 
   Widget _buildFeed() {
-    if (_posts.isEmpty) {
-      return const Center(child: Text("No posts available."));
-    }
-
-    return ListView.builder(
-      itemCount: _posts.length,
-      itemBuilder: (context, index) {
-        final post = _posts[index];
-        return PostItem(post: post, profileId: _profileId ?? '');
-      },
+    return RefreshIndicator(
+      onRefresh: _fetchData,
+      child: _posts.isEmpty
+        ? ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.4,
+              ),
+              const Center(child: Text("No posts available.")),
+            ],
+          )
+        : ListView.builder(
+            itemCount: _posts.length,
+            itemBuilder: (context, index) {
+              final post = _posts[index];
+              return PostItem(post: post, profileId: _profileId ?? '');
+            },
+          ),
     );
   }
 }
