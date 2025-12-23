@@ -68,7 +68,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
       );
 
       final profilesMap = {
-        for (var p in profilesResponse.rows) p.$id: Profile.fromMap(p.data, p.$id)
+        for (var doc in profilesResponse.rows) doc.$id: doc.data
       };
 
       final posts = postsResponse.rows.map((row) {
@@ -76,61 +76,55 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
         if (isHidden) {
           return null;
         }
-
-        final profileIdsList = row.data['profile_id'] as List?;
-        final authorProfileId =
-            (profileIdsList?.isNotEmpty ?? false) ? profileIdsList!.first as String? : null;
-
-        if (authorProfileId == null) {
-          debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. No profile_id.');
-          return null;
+        
+        final profileIds = row.data['profile_id'] as List?;
+        final profileId = (profileIds?.isNotEmpty ?? false)
+            ? profileIds!.first as String?
+            : null;
+        if (profileId == null) {
+            debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. No profile_id.');
+            return null;
         }
 
-        final author = profilesMap[authorProfileId];
-        if (author == null) {
-          debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. Author profile for ID $authorProfileId not found.');
-          return null;
+        final creatorProfileData = profilesMap[profileId];
+        if (creatorProfileData == null) {
+            debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. Author profile for ID $profileId not found.');
+            return null;
         }
+
+        final author = Profile.fromMap(creatorProfileData, profileId);
 
         final updatedAuthor = Profile(
-            id: author.id,
-            name: author.name,
-            type: author.type,
-            bio: author.bio,
-            profileImageUrl:
-                author.profileImageUrl != null && author.profileImageUrl!.isNotEmpty
-                    ? _appwriteService.getFileViewUrl(author.profileImageUrl!)
-                    : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-            ownerId: author.ownerId,
-            createdAt: author.createdAt);
+          id: author.id,
+          name: author.name,
+          type: author.type,
+          bio: author.bio,
+          profileImageUrl: author.profileImageUrl != null &&
+                  author.profileImageUrl!.isNotEmpty
+              ? _appwriteService.getFileViewUrl(author.profileImageUrl!)
+              : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+          ownerId: author.ownerId,
+          createdAt: author.createdAt,
+        );
 
-        final authorIdsList = row.data['author_id'] as List?;
-        final originalAuthorId =
-            (authorIdsList?.isNotEmpty ?? false) ? authorIdsList!.first as String? : null;
+        final originalAuthorIds = row.data['author_id'] as List?;
+        final originalAuthorId = (originalAuthorIds?.isNotEmpty ?? false)
+            ? originalAuthorIds!.first as String?
+            : null;
 
-        Profile? finalOriginalAuthor;
-        if (originalAuthorId != null && originalAuthorId != authorProfileId) {
-          final originalAuthorProfile = profilesMap[originalAuthorId];
-          if (originalAuthorProfile != null) {
-              finalOriginalAuthor = Profile(
-                id: originalAuthorProfile.id,
-                name: originalAuthorProfile.name,
-                type: originalAuthorProfile.type,
-                bio: originalAuthorProfile.bio,
-                profileImageUrl:
-                    originalAuthorProfile.profileImageUrl != null && originalAuthorProfile.profileImageUrl!.isNotEmpty
-                        ? _appwriteService.getFileViewUrl(originalAuthorProfile.profileImageUrl!)
-                        : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-                ownerId: originalAuthorProfile.ownerId,
-                createdAt: originalAuthorProfile.createdAt);
+        Profile? originalAuthor;
+        if (originalAuthorId != null && originalAuthorId != profileId) {
+          final originalAuthorProfileData = profilesMap[originalAuthorId];
+          if (originalAuthorProfileData != null) {
+            originalAuthor =
+                Profile.fromMap(originalAuthorProfileData, originalAuthorId);
           }
         }
 
         final fileIdsData = row.data['file_ids'];
-        final List<String> fileIds =
-            fileIdsData is List
-                ? List<String>.from(fileIdsData.map((id) => id.toString()))
-                : [];
+        final List<String> fileIds = fileIdsData is List
+            ? List<String>.from(fileIdsData.map((id) => id.toString()))
+            : [];
 
         String? postTypeString = row.data['type'];
         if (postTypeString == null && fileIds.isNotEmpty) {
@@ -156,7 +150,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
         return Post(
           id: row.$id,
           author: updatedAuthor,
-          originalAuthor: finalOriginalAuthor,
+          originalAuthor: originalAuthor,
           timestamp:
               DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
           contentText: row.data['caption'] ?? '',
