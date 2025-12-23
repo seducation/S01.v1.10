@@ -57,8 +57,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
       );
 
       final profilesMap = {
-        for (var p in profilesResponse.rows)
-          p.$id: Profile.fromMap(p.data, p.$id),
+        for (var p in profilesResponse.rows) p.$id: p.data,
       };
 
       final posts = postsResponse.rows
@@ -72,14 +71,38 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
             final profileId = (profileIds?.isNotEmpty ?? false)
                 ? profileIds!.first as String?
                 : null;
-            final author = profilesMap[profileId];
+            
+            if (profileId == null) {
+              debugPrint(
+                'HMVFeaturesTabscreen: Post ${row.$id} filtered. profileId is null.',
+              );
+              return null;
+            }
 
-            if (author == null) {
+            final creatorProfileData = profilesMap[profileId];
+
+            if (creatorProfileData == null) {
               debugPrint(
                 'HMVFeaturesTabscreen: Post ${row.$id} filtered. ProfileId: $profileId not found in profiles map.',
               );
               return null;
             }
+
+            final author = Profile.fromMap(creatorProfileData, profileId);
+
+            final updatedAuthor = Profile(
+              id: author.id,
+              name: author.name,
+              type: author.type,
+              bio: author.bio,
+              profileImageUrl:
+                  author.profileImageUrl != null &&
+                      author.profileImageUrl!.isNotEmpty
+                  ? _appwriteService.getFileViewUrl(author.profileImageUrl!)
+                  : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+              ownerId: author.ownerId,
+              createdAt: author.createdAt,
+            );
 
             PostType type = PostType.text;
             List<String> mediaUrls = [];
@@ -93,7 +116,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
 
             return Post(
               id: row.$id,
-              author: author,
+              author: updatedAuthor,
               timestamp:
                   DateTime.tryParse(row.data['timestamp'] ?? '') ??
                   DateTime.now(),
