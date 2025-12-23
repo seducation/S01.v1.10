@@ -74,7 +74,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
             
             if (profileId == null) {
               debugPrint(
-                'HMVFeaturesTabscreen: Post ${row.$id} filtered. profileId is null.',
+                'HMVFeaturesTabscreen: Post ${row.$id} filtered. profileId is null. Data: ${row.data}',
               );
               return null;
             }
@@ -104,6 +104,22 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
               createdAt: author.createdAt,
             );
 
+            final originalAuthorIds = row.data['author_id'] as List?;
+            final originalAuthorId = (originalAuthorIds?.isNotEmpty ?? false)
+                ? originalAuthorIds!.first as String?
+                : null;
+
+            Profile? originalAuthor;
+            if (originalAuthorId != null && originalAuthorId != profileId) {
+              final originalAuthorProfileData = profilesMap[originalAuthorId];
+              if (originalAuthorProfileData != null) {
+                originalAuthor = Profile.fromMap(
+                  originalAuthorProfileData,
+                  originalAuthorId,
+                );
+              }
+            }
+
             PostType type = PostType.text;
             List<String> mediaUrls = [];
             final fileIds = row.data['file_ids'] as List?;
@@ -117,6 +133,7 @@ class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
             return Post(
               id: row.$id,
               author: updatedAuthor,
+              originalAuthor: originalAuthor,
               timestamp:
                   DateTime.tryParse(row.data['timestamp'] ?? '') ??
                   DateTime.now(),
