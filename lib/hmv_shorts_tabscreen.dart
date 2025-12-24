@@ -1,4 +1,3 @@
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/appwrite_service.dart';
@@ -40,77 +39,169 @@ class _HMVShortsTabscreenState extends State<HMVShortsTabscreen> {
   }
 
   Future<void> _fetchPosts() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
     try {
       final user = await appwriteService.getUser();
       if (user != null) {
-        final profiles = await appwriteService.getUserProfiles(ownerId: user.$id);
+        final profiles = await appwriteService.getUserProfiles(
+          ownerId: user.$id,
+        );
         if (profiles.rows.isNotEmpty) {
           _profileId = profiles.rows.first.$id;
         }
       }
-      final postsResponse = await appwriteService.getPosts();
-      final profilesResponse = await appwriteService.getProfiles();
 
-      final profilesMap = {for (var p in profilesResponse.rows) p.$id: Profile.fromMap(p.data, p.$id)};
+      final results = await Future.wait([
+        appwriteService.getPosts(),
+        appwriteService.getProfiles(),
+      ]);
 
-      final posts = postsResponse.rows.map((row) {
-        final profileId = row.data['profile_id'] as String?;
-        final author = profilesMap[profileId];
+      final postsResponse = results[0];
+      final profilesResponse = results[1];
 
-        if (author == null) {
+      final profilesMap = {
+        for (var doc in profilesResponse.rows) doc.$id: doc.data,
+      };
+
+      final postFutures = postsResponse.rows.map((row) async {
+
+        final profileIds = row.data['profile_id'] as List?;
+        if (profileIds == null || profileIds.isEmpty) {
+          return null;
+        }
+        final profileId = profileIds.first as String?;
+        if (profileId == null) {
           return null;
         }
 
-        PostType type;
-        try {
-          type = PostType.values.firstWhere((e) => e.toString() == 'PostType.${row.data['type']}');
-        } catch (e) {
-          type = PostType.text; 
-        }
-
-        if (type != PostType.video) {
+        final creatorProfileData = profilesMap[profileId];
+        if (creatorProfileData == null) {
           return null;
         }
+
+        final author = Profile.fromMap(creatorProfileData, profileId);
+
+        final updatedAuthor = Profile(
+          id: author.id,
+          name: author.name,
+          type: author.type,
+          bio: author.bio,
+          profileImageUrl:
+              author.profileImageUrl != null &&
+                      author.profileImageUrl!.isNotEmpty
+                  ? appwriteService.getFileViewUrl(author.profileImageUrl!)
+                  : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+          ownerId: author.ownerId,
+          createdAt: author.createdAt,
+        );
+
+        final originalAuthorIds = row.data['author_id'] as List?;
+        final originalAuthorId = (originalAuthorIds?.isNotEmpty ?? false)
+            ? originalAuthorIds!.first as String?
+            : null;
+
+        Profile? originalAuthor;
+        if (originalAuthorId != null && originalAuthorId != profileId) {
+          final originalAuthorProfileData = profilesMap[originalAuthorId];
+          if (originalAuthorProfileData != null) {
+            originalAuthor = Profile.fromMap(
+              originalAuthorProfileData,
+              originalAuthorId,
+            );
+          }
+        }
+
+        final fileIdsData = row.data['file_ids'];
+        final List<String> fileIds = fileIdsData is List
+            ? List<String>.from(fileIdsData.map((id) => id.toString()))
+            : [];
 
         List<String> mediaUrls = [];
-        final fileIds = row.data['file_ids'] as List?;
-        if (fileIds != null && fileIds.isNotEmpty) {
-          mediaUrls = fileIds.map((id) => appwriteService.getFileViewUrl(id)).toList();
+        if (fileIds.isNotEmpty) {
+          mediaUrls = fileIds
+              .map((id) => appwriteService.getFileViewUrl(id))
+              .toList();
         }
+
+        String? postTypeString = row.data['type'];
+        final postType = await _getPostType(postTypeString, row.data['linkUrl'], fileIds);
+
+        final postStats = PostStats(
+          likes: row.data['likes'] ?? 0,
+          comments: row.data['comments'] ?? 0,
+          shares: row.data['shares'] ?? 0,
+          views: row.data['views'] ?? 0,
+        );
 
         return Post(
           id: row.$id,
-          author: author,
-          timestamp: DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
-          linkTitle: row.data['titles'] as String? ?? '',
-          contentText: row.data['caption'] as String? ?? '',
-          type: type,
+          author: updatedAuthor,
+          originalAuthor: originalAuthor,
+          timestamp:
+              DateTime.tryParse(row.data['timestamp'] ?? '') ??
+                  DateTime.now(),
+          contentText: row.data['caption'] ?? '',
           mediaUrls: mediaUrls,
-          linkUrl: row.data['linkUrl'] as String?,
-          stats: PostStats(
-            likes: row.data['likes'] ?? 0,
-            comments: row.data['comments'] ?? 0,
-            shares: row.data['shares'] ?? 0,
-            views: row.data['views'] ?? 0,
-          ),
+          type: postType,
+          stats: postStats,
+          linkUrl: row.data['linkUrl'],
+          linkTitle: row.data['titles'],
+          authorIds: (row.data['author_id'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList(),
+          profileIds: (row.data['profile_id'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList(),
         );
-      }).whereType<Post>().toList();
+      });
+
+      final posts = (await Future.wait(postFutures))
+          .whereType<Post>()
+          .where((post) => post.type == PostType.video)
+          .toList();
+
+      if (!mounted) return;
 
       _rankPosts(posts);
 
-      if (mounted) {
-        setState(() {
-          _posts = posts;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+      setState(() {
+        _posts = posts;
+        _isLoading = false;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Error fetching data in HMVShortsTabscreen: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     }
+  }
+
+  Future<PostType> _getPostType(String? type, String? linkUrl, List<String> fileIds) async {
+    if (type == 'video') {
+      return PostType.video;
+    }
+    if (fileIds.isNotEmpty) {
+      try {
+        final file = await appwriteService.getFile(fileIds.first);
+        if (file.mimeType.startsWith('video/')) {
+          return PostType.video;
+        }
+        return PostType.image;
+      } catch (e) {
+        debugPrint('Error fetching file metadata: $e');
+        return PostType.image; // Assume image if metadata fetch fails
+      }
+    }
+    if (linkUrl != null && linkUrl.isNotEmpty) {
+      return PostType.linkPreview;
+    }
+    return PostType.text;
   }
 
   void _rankPosts(List<Post> posts) {
