@@ -74,6 +74,7 @@ class _HmvVideosTabScreenState extends State<HmvVideosTabScreen> {
       final posts = postsResponse.rows
           .map((row) {
             debugPrint('HmvVideosTabScreen: Processing post ${row.$id}');
+            debugPrint('HmvVideosTabScreen: Post ${row.$id} raw type is: ${row.data['type']}');
 
             final profileIds = row.data['profile_id'] as List?;
             if (profileIds == null || profileIds.isEmpty) {
