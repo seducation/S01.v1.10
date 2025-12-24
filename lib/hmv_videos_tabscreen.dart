@@ -53,7 +53,7 @@ class _HmvVideosTabScreenState extends State<HmvVideosTabScreen> {
       }
 
       final results = await Future.wait([
-        _appwriteService.getPosts(queries: ['equal("type", ["video"])']),
+        _appwriteService.getPosts(),
         _appwriteService.getProfiles(),
       ]);
 
