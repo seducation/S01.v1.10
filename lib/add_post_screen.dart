@@ -103,10 +103,16 @@ class _AddPostScreenState extends State<AddPostScreen> {
   }
 
   Future<void> _continueToPostDestination() async {
-    if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please add a title')));
+    final bool hasTitle = _titleController.text.trim().isNotEmpty;
+    final bool hasDescription = _descriptionController.text.trim().isNotEmpty;
+    final bool hasFiles = _selectedFiles.isNotEmpty;
+
+    if (!hasTitle && !hasDescription && !hasFiles) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add a title, description, or file to publish'),
+        ),
+      );
       return;
     }
 
@@ -149,8 +155,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
         'file_ids': uploadedFileIds,
         'profile_id': _selectedProfileId,
         'is_nsfw': _selectedPostSettings.contains('NSFW'),
-        'allow_share':
-            !_selectedPostSettings.contains('Do not allow to share in different platform'),
+        'allow_share': !_selectedPostSettings.contains(
+          'Do not allow to share in different platform',
+        ),
         'friends': _selectedPostSettings.contains('friends'),
       };
 
@@ -199,12 +206,30 @@ class _AddPostScreenState extends State<AddPostScreen> {
       );
 
       if (result != null) {
-        setState(() {
-          _selectedFiles = result.files;
-        });
-        _showSnackbar(
-          'Successfully selected ${_selectedFiles.length} file(s).',
-        );
+        final pickedFiles = result.files;
+        if (pickedFiles.isNotEmpty) {
+          // Check if all files have the same extension
+          final String? firstExtension = pickedFiles.first.extension
+              ?.toLowerCase();
+          final bool allSameType = pickedFiles.every(
+            (file) => file.extension?.toLowerCase() == firstExtension,
+          );
+
+          if (!allSameType) {
+            _showSnackbar(
+              'Mixing different file types (e.g., JPG and PDF) is not allowed. '
+              'Please select only one type of file.',
+            );
+            return;
+          }
+
+          setState(() {
+            _selectedFiles = pickedFiles;
+          });
+          _showSnackbar(
+            'Successfully selected ${_selectedFiles.length} file(s).',
+          );
+        }
       } else {
         // User canceled the picker
         _showSnackbar('File selection cancelled.');
@@ -523,7 +548,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     final List<String> postSettingOptions = [
       'NSFW',
       'Do not allow to share in different platform',
-      'friends'
+      'friends',
     ];
 
     return Column(
@@ -563,11 +588,10 @@ class _AddPostScreenState extends State<AddPostScreen> {
           DropdownButtonFormField<String>(
             key: UniqueKey(),
             hint: const Text('Select Setting'),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(border: OutlineInputBorder()),
             onChanged: (String? newValue) {
-              if (newValue != null && !_selectedPostSettings.contains(newValue)) {
+              if (newValue != null &&
+                  !_selectedPostSettings.contains(newValue)) {
                 setState(() {
                   _selectedPostSettings.add(newValue);
                 });
@@ -576,13 +600,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
             items: postSettingOptions
                 .where((option) => !_selectedPostSettings.contains(option))
                 .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                })
+                .toList(),
           ),
-        ]
+        ],
       ],
     );
   }
