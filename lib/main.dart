@@ -42,10 +42,36 @@ import 'setting_support_screen.dart';
 import 'about_searches_widgets/about_searches_widget.dart';
 import 'adaptive_ui/adaptive_scaffold.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 List<CameraDescription> cameras = []; // Global cameras list
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    // Request permissions (especially for iOS)
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      debugPrint('User granted permission');
+    } else {
+      debugPrint('User declined or has not accepted permission');
+    }
+  } catch (e) {
+    debugPrint(
+      'Firebase initialization failed: $e. Make sure google-services.json is added.',
+    );
+  }
 
   try {
     cameras = await availableCameras();
@@ -57,14 +83,24 @@ Future<void> main() async {
     ..setEndpoint(Environment.appwritePublicEndpoint)
     ..setProject(Environment.appwriteProjectId);
 
+  final appwriteService = AppwriteService(client);
   final authService = AuthService(client);
   await authService.init();
+
+  // Handle FCM token
+  try {
+    String? token = await FirebaseMessaging.instance.getToken();
+    if (token != null) {
+      await appwriteService.registerDevice(token);
+    }
+  } catch (e) {
+    debugPrint('Error getting FCM token: $e');
+  }
 
   runApp(
     MultiProvider(
       providers: [
-
-        Provider(create: (_) => AppwriteService(client)),
+        Provider.value(value: appwriteService),
         ChangeNotifierProvider.value(value: authService),
         ChangeNotifierProvider(create: (_) => ThemeModel()),
       ],
@@ -256,7 +292,7 @@ GoRouter _createRouter(AuthService authService) {
         path: '/setting_support',
         builder: (context, state) => const SettingSupportScreen(),
       ),
-       GoRoute(
+      GoRoute(
         path: '/sent_post',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;

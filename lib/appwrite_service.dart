@@ -934,4 +934,21 @@ class AppwriteService {
     required String reportedBy,
     required String reason,
   }) async {}
+
+  Future<void> registerDevice(String deviceToken) async {
+    final user = await getUser();
+    if (user == null) return;
+
+    try {
+      // Appwrite 1.5+ uses Account.createPushTarget for FCM/APNS registration
+      await _account.createPushTarget(
+        targetId: ID.unique(),
+        identifier: deviceToken,
+        providerId: 'fcm',
+      );
+      log('Device registered with Appwrite Messaging via Account service');
+    } catch (e) {
+      log('Error registering push target: $e');
+    }
+  }
 }
