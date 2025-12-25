@@ -9,7 +9,7 @@ class DashboardWidget extends StatefulWidget {
 
 class _DashboardWidgetState extends State<DashboardWidget> {
   // State variables to simulate dynamic data
-  String followerCount = "127,225";
+  String karmaCount = "127,225";
   double followerPercentChange = -0.05;
   String followingCount = "1,234";
   String likesCount = "5,678";
@@ -87,13 +87,13 @@ class _DashboardWidgetState extends State<DashboardWidget> {
               ),
             ],
           ),
-          
+
           // Bottom Row: Price and Action Button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                followerCount,
+                karmaCount,
                 style: const TextStyle(
                   color: Colors.black87,
                   fontWeight: FontWeight.bold,
@@ -112,7 +112,7 @@ class _DashboardWidgetState extends State<DashboardWidget> {
                   color: Colors.white,
                   size: 18,
                 ),
-              )
+              ),
             ],
           ),
         ],

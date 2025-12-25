@@ -24,10 +24,10 @@ class FeedController extends ChangeNotifier {
     required Client client,
     required String userId,
     String postType = 'all', // Add postType parameter with a default value
-  })  : _functions = Functions(client),
-        _databases = TablesDB(client),
-        _userId = userId,
-        _postType = postType {
+  }) : _functions = Functions(client),
+       _databases = TablesDB(client),
+       _userId = userId,
+       _postType = postType {
     _sessionId = const Uuid().v4(); // Generate unique session ID
     loadFeed();
   }
@@ -50,7 +50,7 @@ class FeedController extends ChangeNotifier {
     try {
       // Call Cloud Function
       final execution = await _functions.createExecution(
-        functionId: 'generateFeed', // Replace with your actual function ID
+        functionId: 'generate-feed', // Replace with your actual function ID
         body: jsonEncode({
           'sessionId': _sessionId,
           'offset': _offset,

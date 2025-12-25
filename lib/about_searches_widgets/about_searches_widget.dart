@@ -4,9 +4,9 @@ import 'package:my_app/setting_widget/dark_list_tile.dart';
 import 'package:my_app/setting_widget/dashboard_widget.dart';
 import 'package:my_app/travel_navigation_card.dart';
 import 'package:my_app/setting_widget/train_widget.dart';
+import '../features/about/widgets/apple_store_difference_card_widget.dart';
 import 'carousel_screen_widget.dart';
 import 'shorts_rail_widget.dart';
-import 'apple_store_difference_card_widget.dart';
 
 class AboutSearches extends StatefulWidget {
   const AboutSearches({super.key});
@@ -96,10 +96,7 @@ class _AboutSearchesState extends State<AboutSearches> {
       child: Center(
         child: Text(
           name,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -107,12 +104,12 @@ class _AboutSearchesState extends State<AboutSearches> {
 
   Widget _buildInitialLayout() {
     final List<MenuItem> menuItems = [
-      MenuItem(title: "Liquid Glass", type: ItemType.history),
-      MenuItem(title: "Apple", type: ItemType.navigation),
-      MenuItem(title: "Mac", type: ItemType.navigation),
+      MenuItem(title: "gvone vr and ar experience", type: ItemType.history),
+      MenuItem(title: "gvone", type: ItemType.navigation),
+      MenuItem(title: "community", type: ItemType.navigation),
       MenuItem(title: "Store", type: ItemType.navigation),
-      MenuItem(title: "iPad", type: ItemType.navigation),
-      MenuItem(title: "iPhone", type: ItemType.navigation),
+      MenuItem(title: "emersive contents", type: ItemType.navigation),
+      MenuItem(title: "regional store experience", type: ItemType.navigation),
     ];
 
     return SingleChildScrollView(
@@ -126,7 +123,7 @@ class _AboutSearchesState extends State<AboutSearches> {
                 const SizedBox(height: 120),
                 const Center(
                   child: Text(
-                    'My App',
+                    'gvone',
                     style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -147,13 +144,19 @@ class _AboutSearchesState extends State<AboutSearches> {
                         });
                       },
                       decoration: InputDecoration(
-                        hintText: 'Search...',
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        hintText: 'Search with kai',
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.swap_horiz, color: Colors.grey),
+                              icon: const Icon(
+                                Icons.swap_horiz,
+                                color: Colors.grey,
+                              ),
                               onPressed: _toggleSearch,
                             ),
                             const SizedBox(width: 8),
@@ -183,10 +186,10 @@ class _AboutSearchesState extends State<AboutSearches> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildToolIcon(Icons.science_outlined, 'Labs'),
-                    _buildToolIcon(Icons.list_alt_outlined, 'Lits'),
+                    _buildToolIcon(Icons.list_alt_outlined, 'List'),
                     _buildToolIcon(Icons.payment, 'Payment'),
                     _buildToolIcon(Icons.construction_outlined, 'Tools'),
-                    _buildToolIcon(Icons.history, 'History'),
+                    _buildToolIcon(Icons.history, 'saved'),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -239,12 +242,12 @@ class _AboutSearchesState extends State<AboutSearches> {
                   children: [
                     Text(
                       'Settings',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    Text(
-                      'show more',
-                      style: TextStyle(color: Colors.blue),
-                    ),
+                    Text('show more', style: TextStyle(color: Colors.blue)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -425,16 +428,13 @@ class _AboutSearchesState extends State<AboutSearches> {
           )
         else
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final hit = _searchResults[index];
-                return ListTile(
-                  title: Text(hit['name'] ?? 'No name'),
-                  subtitle: Text(hit['description'] ?? ''),
-                );
-              },
-              childCount: _searchResults.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final hit = _searchResults[index];
+              return ListTile(
+                title: Text(hit['name'] ?? 'No name'),
+                subtitle: Text(hit['description'] ?? ''),
+              );
+            }, childCount: _searchResults.length),
           ),
       ],
     );

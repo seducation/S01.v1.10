@@ -17,7 +17,7 @@ class AppleStoreDifferenceCard extends StatelessWidget {
               style: TextStyle(fontSize: 28, height: 1.1),
               children: [
                 TextSpan(
-                  text: "The Apple Store difference. ",
+                  text: "The gvone Store difference. ",
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
@@ -27,7 +27,7 @@ class AppleStoreDifferenceCard extends StatelessWidget {
                   text: "Even more reasons to shop with us.",
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF86868b), // Apple's distinct grey
+                    color: Color(0xFF86868b), // gvone's distinct grey
                   ),
                 ),
               ],
@@ -39,7 +39,9 @@ class AppleStoreDifferenceCard extends StatelessWidget {
           height: 240, // Height constraint for the horizontal list
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24), // Left/Right padding for the list
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+            ), // Left/Right padding for the list
             physics: const BouncingScrollPhysics(), // iOS style bounce
             children: [
               _buildCard(
@@ -79,7 +81,11 @@ class AppleStoreDifferenceCard extends StatelessWidget {
                       margin: const EdgeInsets.only(top: 8),
                       child: Stack(
                         children: [
-                          Icon(CupertinoIcons.device_laptop, size: 36, color: Colors.blue.shade600),
+                          Icon(
+                            CupertinoIcons.device_laptop,
+                            size: 36,
+                            color: Colors.blue.shade600,
+                          ),
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -88,14 +94,22 @@ class AppleStoreDifferenceCard extends StatelessWidget {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Icon(CupertinoIcons.device_phone_portrait, size: 20, color: Colors.blue.shade600),
+                              child: Icon(
+                                CupertinoIcons.device_phone_portrait,
+                                size: 20,
+                                color: Colors.blue.shade600,
+                              ),
                             ),
                           ),
                           Positioned(
                             top: 0,
                             right: 0,
-                            child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: Colors.blue.shade600),
-                          )
+                            child: Icon(
+                              CupertinoIcons.arrow_2_circlepath,
+                              size: 18,
+                              color: Colors.blue.shade600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -111,9 +125,15 @@ class AppleStoreDifferenceCard extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: "Exchange your smartphone, ",
-                            style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: Colors.blue.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          const TextSpan(text: "get ₹3350.00 – ₹64000.00 credit towards a new one.*"),
+                          const TextSpan(
+                            text:
+                                "get ₹3350.00 – ₹64000.00 credit towards a new one.*",
+                          ),
                         ],
                       ),
                     ),
@@ -127,17 +147,31 @@ class AppleStoreDifferenceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.local_shipping_outlined, color: Colors.green.shade600, size: 40),
+                    Icon(
+                      Icons.local_shipping_outlined,
+                      color: Colors.green.shade600,
+                      size: 40,
+                    ),
                     const Spacer(),
                     RichText(
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 15, color: Colors.black, height: 1.4),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Colors.black,
+                          height: 1.4,
+                        ),
                         children: [
                           TextSpan(
                             text: "Free delivery, ",
-                            style: TextStyle(color: Colors.green.shade600, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: Colors.green.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          const TextSpan(text: "on all orders. Get it delivered to your doorstep quickly and safely."),
+                          const TextSpan(
+                            text:
+                                "on all orders. Get it delivered to your doorstep quickly and safely.",
+                          ),
                         ],
                       ),
                     ),

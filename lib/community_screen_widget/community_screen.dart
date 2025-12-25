@@ -36,38 +36,40 @@ class _CommunityScreenState extends State<CommunityScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text("myapps", style: TextStyle(fontSize: 22)),
-        actions: const [
-          PersistentChip(),
-        ],
+        actions: const [PersistentChip()],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            HeroBanner(items: [
-              HeroItem(
+            HeroBanner(
+              items: [
+                HeroItem(
                   title: "Foundation",
-                  subtitle: "Apple Original",
+                  subtitle: "gvone Original",
                   description: "A new empire will rise.",
                   imageUrl:
-                      "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/e2/2b/8c/e22b8c2c-87e6-2b12-b174-a9c6838b8133/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtRm91bmRhdGlvbi5wbmc.png/1679x945.webp"),
-              HeroItem(
-                title: "LOOT",
-                subtitle: "TV Show • Comedy • TV-MA",
-                description:
-                    "A billionaire divorcée continues her hilarious quest to improve the world—and herself.",
-                imageUrl: "https://is1-ssl.mzstatic.com/image/thumb/Features122/v4/a4/3c/6e/a43c6e4e-941c-2334-f87c-6b3a9a1491e3/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtTG9vdC5wbmc/1679x945.webp",
-              ),
-              HeroItem(
-                title: "Severance",
-                subtitle: "Drama • Sci-Fi",
-                description: "A unique workplace thriller about split memories.",
-                imageUrl: "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/3c/f1/c1/3cf1c1f7-4a74-a621-3d5f-149b1390906f/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtU2V2ZXJhbmNlLnBuZw/1679x945.webp",
-              ),
-            ]),
-            const SizedBox(height: 20),
-            const StatusRailSection(
-              title: "People",
+                      "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/e2/2b/8c/e22b8c2c-87e6-2b12-b174-a9c6838b8133/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtRm91bmRhdGlvbi5wbmc.png/1679x945.webp",
+                ),
+                HeroItem(
+                  title: "LOOT",
+                  subtitle: "TV Show • Comedy • TV-MA",
+                  description:
+                      "A billionaire divorcée continues her hilarious quest to improve the world—and herself.",
+                  imageUrl:
+                      "https://is1-ssl.mzstatic.com/image/thumb/Features122/v4/a4/3c/6e/a43c6e4e-941c-2334-f87c-6b3a9a1491e3/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtTG9vdC5wbmc/1679x945.webp",
+                ),
+                HeroItem(
+                  title: "Severance",
+                  subtitle: "Drama • Sci-Fi",
+                  description:
+                      "A unique workplace thriller about split memories.",
+                  imageUrl:
+                      "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/3c/f1/c1/3cf1c1f7-4a74-a621-3d5f-149b1390906f/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtU2V2ZXJhbmNlLnBuZw/1679x945.webp",
+                ),
+              ],
             ),
+            const SizedBox(height: 20),
+            const StatusRailSection(title: "People"),
             const SizedBox(height: 20),
             ProductGrid(),
             const SizedBox(height: 20),
@@ -141,10 +143,7 @@ class _PersistentChipState extends State<PersistentChip> {
             _isEditing = true;
           });
         },
-        child: Chip(
-          label: Text(_chipText),
-          avatar: const Icon(Icons.edit),
-        ),
+        child: Chip(label: Text(_chipText), avatar: const Icon(Icons.edit)),
       );
     }
   }
