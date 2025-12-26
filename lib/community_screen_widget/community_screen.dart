@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/models/product.dart';
+import 'community_feed.dart';
 import 'hero_banner.dart';
 import 'status_rail_section.dart';
-import 'product_grid.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -13,6 +16,7 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen> {
   bool loading = true;
+  List<Product> _products = [];
 
   @override
   void initState() {
@@ -21,12 +25,22 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   Future<void> loadContent() async {
-    // final service = context.read<AppwriteService>();
-    // final data = await service.getMovies();
-    setState(() {
-      // movies = data;
-      loading = false;
-    });
+    final appwriteService = Provider.of<AppwriteService>(
+      context,
+      listen: false,
+    );
+    try {
+      final response = await appwriteService.getProducts();
+      setState(() {
+        _products = response.rows
+            .map((row) => Product.fromMap(row.data, row.$id))
+            .toList();
+        loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading products: $e');
+      setState(() => loading = false);
+    }
   }
 
   @override
@@ -38,44 +52,46 @@ class _CommunityScreenState extends State<CommunityScreen> {
         title: const Text("myapps", style: TextStyle(fontSize: 22)),
         actions: const [PersistentChip()],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            HeroBanner(
-              items: [
-                HeroItem(
-                  title: "Foundation",
-                  subtitle: "gvone Original",
-                  description: "A new empire will rise.",
-                  imageUrl:
-                      "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/e2/2b/8c/e22b8c2c-87e6-2b12-b174-a9c6838b8133/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtRm91bmRhdGlvbi5wbmc.png/1679x945.webp",
-                ),
-                HeroItem(
-                  title: "LOOT",
-                  subtitle: "TV Show • Comedy • TV-MA",
-                  description:
-                      "A billionaire divorcée continues her hilarious quest to improve the world—and herself.",
-                  imageUrl:
-                      "https://is1-ssl.mzstatic.com/image/thumb/Features122/v4/a4/3c/6e/a43c6e4e-941c-2334-f87c-6b3a9a1491e3/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtTG9vdC5wbmc/1679x945.webp",
-                ),
-                HeroItem(
-                  title: "Severance",
-                  subtitle: "Drama • Sci-Fi",
-                  description:
-                      "A unique workplace thriller about split memories.",
-                  imageUrl:
-                      "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/3c/f1/c1/3cf1c1f7-4a74-a621-3d5f-149b1390906f/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtU2V2ZXJhbmNlLnBuZw/1679x945.webp",
-                ),
-              ],
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  HeroBanner(
+                    items: [
+                      HeroItem(
+                        title: "Foundation",
+                        subtitle: "gvone Original",
+                        description: "A new empire will rise.",
+                        imageUrl:
+                            "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/e2/2b/8c/e22b8c2c-87e6-2b12-b174-a9c6838b8133/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtRm91bmRhdGlvbi5wbmc.png/1679x945.webp",
+                      ),
+                      HeroItem(
+                        title: "LOOT",
+                        subtitle: "TV Show • Comedy • TV-MA",
+                        description:
+                            "A billionaire divorcée continues her hilarious quest to improve the world—and herself.",
+                        imageUrl:
+                            "https://is1-ssl.mzstatic.com/image/thumb/Features122/v4/a4/3c/6e/a43c6e4e-941c-2334-f87c-6b3a9a1491e3/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtTG9vdC5wbmc/1679x945.webp",
+                      ),
+                      HeroItem(
+                        title: "Severance",
+                        subtitle: "Drama • Sci-Fi",
+                        description:
+                            "A unique workplace thriller about split memories.",
+                        imageUrl:
+                            "https://is3-ssl.mzstatic.com/image/thumb/Features116/v4/3c/f1/c1/3cf1c1f7-4a74-a621-3d5f-149b1390906f/U0YtVFZBLVVTQS1GYW1pbHktQ2Fyb3VzZWwtU2V2ZXJhbmNlLnBuZw/1679x945.webp",
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const StatusRailSection(title: "People"),
+                  const SizedBox(height: 20),
+                  CommunityFeed(products: _products),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            const StatusRailSection(title: "People"),
-            const SizedBox(height: 20),
-            ProductGrid(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }

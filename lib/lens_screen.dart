@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:my_app/appwrite_service.dart';
 import 'package:my_app/camera_screen.dart'; // Added import
 import 'package:my_app/lens_screen/staggered_grid.dart';
-import 'package:my_app/webview_screen.dart';
 import 'package:provider/provider.dart';
 
 class LensScreen extends StatefulWidget {
@@ -106,13 +105,6 @@ class _LensScreenState extends State<LensScreen> {
     }
   }
 
-  void _launchUrl(String url) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => WebViewScreen(url: url)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isCameraOpen) {
@@ -173,7 +165,12 @@ class _LensScreenState extends State<LensScreen> {
             ),
           SliverPadding(
             padding: const EdgeInsets.all(4.0),
-            sliver: LensStaggeredGrid(items: _items, onUrlLaunch: _launchUrl),
+            sliver: LensStaggeredGrid(
+              items: _items,
+              scrollController: _scrollController,
+              isLoading: _isLoading,
+              error: _error,
+            ),
           ),
           if (_isLoading)
             const SliverToBoxAdapter(

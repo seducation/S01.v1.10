@@ -41,9 +41,11 @@ class _ProductGridState extends State<ProductGrid> {
       final response = widget.profileId != null
           ? await _appwriteService.getProductsByProfile(widget.profileId!)
           : await _appwriteService.getProducts();
-      debugPrint('Appwrite response received. Total documents: ${response.total}');
+      debugPrint(
+        'Appwrite response received. Total documents: ${response.total}',
+      );
       for (var row in response.rows) {
-          debugPrint('Row data: ${row.data}');
+        debugPrint('Row data: ${row.data}');
       }
       return response.rows
           .map((row) => Product.fromMap(row.data, row.$id))
@@ -74,10 +76,7 @@ class _ProductGridState extends State<ProductGrid> {
               children: [
                 Text('Error: ${snapshot.error}'),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _retry,
-                  child: const Text('Retry'),
-                ),
+                ElevatedButton(onPressed: _retry, child: const Text('Retry')),
               ],
             ),
           );
@@ -104,7 +103,8 @@ class _ProductGridState extends State<ProductGrid> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProductDetailPage(product: products[index]),
+                    builder: (context) =>
+                        ProductDetailPage(product: products[index]),
                   ),
                 );
               },
@@ -124,13 +124,14 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appwriteService = Provider.of<AppwriteService>(context, listen: false);
+    final appwriteService = Provider.of<AppwriteService>(
+      context,
+      listen: false,
+    );
 
     return Card(
       color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
       elevation: 5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +144,9 @@ class ProductCard extends StatelessWidget {
               ),
               child: product.imageId != null
                   ? CachedNetworkImage(
-                      imageUrl: appwriteService.getFileViewUrl(product.imageId!),
+                      imageUrl: appwriteService.getFileViewUrl(
+                        product.imageId!,
+                      ),
                       fit: BoxFit.cover,
                       width: double.infinity,
                       placeholder: (context, url) =>
@@ -153,7 +156,11 @@ class ProductCard extends StatelessWidget {
                     )
                   : Container(
                       color: Colors.grey[200],
-                      child: const Icon(Icons.image, size: 50, color: Colors.grey),
+                      child: const Icon(
+                        Icons.image,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
                     ),
             ),
           ),
@@ -180,18 +187,12 @@ class ProductCard extends StatelessWidget {
                 const SizedBox(height: 4.0),
                 Text(
                   product.location,
-                  style: const TextStyle(
-                    fontSize: 12.0,
-                    fontFamily: 'Roboto',
-                  ),
+                  style: const TextStyle(fontSize: 12.0, fontFamily: 'Roboto'),
                 ),
                 const SizedBox(height: 4.0),
                 const Text(
                   'Free delivery',
-                  style: TextStyle(
-                    fontSize: 12.0,
-                    fontFamily: 'Roboto',
-                  ),
+                  style: TextStyle(fontSize: 12.0, fontFamily: 'Roboto'),
                 ),
               ],
             ),

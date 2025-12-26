@@ -1,202 +1,134 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/models/product.dart' as real;
+import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/product_detailed_page.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-// --- Dummy Product Model ---
-class Product {
-  final String id;
-  final String name;
-  final String imageUrl;
-  final double price;
-
-  Product({
-    required this.id,
-    required this.name,
-    required this.imageUrl,
-    required this.price,
-  });
-}
-
-// --- Dummy Service ---
-class AppwriteService {
-  static Future<List<Product>> getProducts() async {
-    // Simulate a network call
-    await Future.delayed(const Duration(seconds: 1));
-    return List.generate(
-      10,
-      (index) => Product(
-        id: 'product_$index',
-        name: 'Product $index',
-        imageUrl: 'https://picsum.photos/200/300?random=$index',
-        price: (index + 1) * 10.0,
-      ),
-    );
-  }
-}
-
-// --- Product Card UI ---
-class ProductCard extends StatelessWidget {
-  final Product product;
-
-  const ProductCard({super.key, required this.product});
+class ServicesGridWidget extends StatefulWidget {
+  const ServicesGridWidget({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(4),
-              ),
-              child: Image.network(
-                product.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                loadingBuilder:
-                    (
-                      BuildContext context,
-                      Widget child,
-                      ImageChunkEvent? loadingProgress,
-                    ) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      );
-                    },
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.error),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '\$${product.price.toStringAsFixed(2)}',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<ServicesGridWidget> createState() => _ServicesGridWidgetState();
 }
 
-// --- Product Detail Page ---
-class ProductDetailPage extends StatelessWidget {
-  final Product product;
-
-  const ProductDetailPage({super.key, required this.product});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(product.name)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.network(
-              product.imageUrl,
-              width: 200,
-              height: 200,
-              fit: BoxFit.cover,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Product: ${product.name}',
-              style: const TextStyle(fontSize: 24),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Price: \$${product.price.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- Main Widget ---
-class HorizontalProductSwiper extends StatefulWidget {
-  const HorizontalProductSwiper({super.key});
-
-  @override
-  State<HorizontalProductSwiper> createState() =>
-      _HorizontalProductSwiperState();
-}
-
-class _HorizontalProductSwiperState extends State<HorizontalProductSwiper> {
-  late Future<List<Product>> _productsFuture;
+class _ServicesGridWidgetState extends State<ServicesGridWidget> {
+  late Future<List<real.Product>> _productsFuture;
 
   @override
   void initState() {
     super.initState();
-    _productsFuture = AppwriteService.getProducts();
+    final appwriteService = Provider.of<AppwriteService>(
+      context,
+      listen: false,
+    );
+    _productsFuture = _getProducts(appwriteService);
+  }
+
+  Future<List<real.Product>> _getProducts(AppwriteService service) async {
+    try {
+      final response = await service.getProducts();
+      return response.rows
+          .map((row) => real.Product.fromMap(row.data, row.$id))
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching products for services: $e');
+      return [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 250,
-      child: FutureBuilder<List<Product>>(
-        future: _productsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No products found.'));
-          }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text(
+            'Recommended Services',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 250,
+          child: FutureBuilder<List<real.Product>>(
+            future: _productsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data!.isEmpty) {
+                return const Center(child: Text('No services available.'));
+              }
 
-          final products = snapshot.data!;
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProductDetailPage(product: products[index]),
+              final products = snapshot.data!;
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ProductDetailPage(product: product),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 150,
+                      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: product.imageId != null
+                                  ? CachedNetworkImage(
+                                      imageUrl: context
+                                          .read<AppwriteService>()
+                                          .getFileViewUrl(product.imageId!),
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      placeholder: (context, url) =>
+                                          const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                      errorWidget: (context, url, error) =>
+                                          const Icon(Icons.error),
+                                    )
+                                  : Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.image),
+                                    ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },
-                child: Container(
-                  width: 150,
-                  margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: ProductCard(product: products[index]),
-                ),
               );
             },
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
