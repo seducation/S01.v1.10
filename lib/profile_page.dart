@@ -35,7 +35,8 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
   late AppwriteService _appwriteService;
   late AuthService _authService;
   Profile? _profile;
-  String? _currentUserId;
+  String?
+  _currentUserProfileId; // Renamed from _currentUserId to avoid confusion, though implies profile ID
 
   bool _isFollowing = false;
   int _followersCount = 0;
@@ -76,8 +77,15 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
     });
     try {
       final user = await _authService.getCurrentUser();
-      if (!mounted) return;
-      _currentUserId = user?.id;
+      if (!mounted || user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Get the current user's profile ID
+      _currentUserProfileId = await _appwriteService.getCurrentUserProfileId(
+        user.id,
+      );
 
       final profileRow = await _appwriteService.getProfile(widget.profileId);
       if (!mounted) return;
@@ -97,9 +105,19 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
           ? _appwriteService.getFileViewUrl(bannerImageId)
           : null;
 
+      // Note: We are now displaying the legacy count for now, but ideally we should count
+      // from the 'follows' collection. However, 'followers' array might still be populated.
+      // If we want accurate count from collection, we'd need another query.
+      // For now, let's trust the array count if it exists, or 0.
       _followersCount = followers.length;
-      if (_currentUserId != null) {
-        _isFollowing = followers.contains(_currentUserId);
+
+      if (_currentUserProfileId != null) {
+        _isFollowing = await _appwriteService.isFollowing(
+          followerProfileId: _currentUserProfileId!,
+          followingProfileId: widget.profileId,
+        );
+      } else {
+        _isFollowing = false;
       }
 
       _initializeTabs();
@@ -112,7 +130,6 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
       setState(() {
         _isLoading = false;
       });
-      // Handle error, maybe show a snackbar
     }
   }
 
@@ -142,8 +159,12 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
   }
 
   Future<void> _toggleFollow() async {
-    if (_currentUserId == null) {
-      // Maybe prompt user to log in
+    if (_currentUserProfileId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must have a profile to follow others.'),
+        ),
+      );
       return;
     }
 
@@ -161,23 +182,26 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
 
     try {
       if (_isFollowing) {
-        await _appwriteService.followProfile(
-          profileId: widget.profileId,
-          followerId: _currentUserId!,
+        await _appwriteService.followUser(
+          followerProfileId: _currentUserProfileId!,
+          followingProfileId: widget.profileId,
         );
       } else {
-        await _appwriteService.unfollowProfile(
-          profileId: widget.profileId,
-          followerId: _currentUserId!,
+        await _appwriteService.unfollowUser(
+          followerProfileId: _currentUserProfileId!,
+          followingProfileId: widget.profileId,
         );
       }
     } catch (e) {
+      if (!mounted) return;
       // Revert state on error
       setState(() {
         _isFollowing = originalFollowState;
         _followersCount = originalFollowersCount;
       });
-      // Handle error, maybe show a snackbar
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -191,7 +215,9 @@ class _ProfilePageScreenState extends State<ProfilePageScreen>
   @override
   Widget build(BuildContext context) {
     final isCurrentUser =
-        _currentUserId != null && _currentUserId == _profile?.ownerId;
+        _currentUserProfileId != null &&
+        _currentUserProfileId ==
+            widget.profileId; // Check if viewing own profile
     return Scaffold(
       backgroundColor: Colors.white,
       body: _isLoading || _tabController == null

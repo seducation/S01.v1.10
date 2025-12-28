@@ -20,6 +20,7 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
   bool _isLoading = false;
   String _error = '';
   models.User? _currentUser;
+  String? _currentUserProfileId;
   Set<String> _followingProfileIds = {};
 
   @override
@@ -37,6 +38,11 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
       setState(() {
         _currentUser = user;
       });
+      if (user != null) {
+        _currentUserProfileId = await _appwriteService.getCurrentUserProfileId(
+          user.$id,
+        );
+      }
       await _loadFollowingProfiles();
     } catch (e) {
       // Handle error
@@ -46,7 +52,9 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
   Future<void> _loadFollowingProfiles() async {
     if (_currentUser == null) return;
     try {
-      final result = await _appwriteService.getFollowingProfiles(userId: _currentUser!.$id);
+      final result = await _appwriteService.getFollowingProfiles(
+        userId: _currentUser!.$id,
+      );
       if (mounted) {
         setState(() {
           _followingProfileIds = result.rows.map((row) => row.$id).toSet();
@@ -85,10 +93,16 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
     }
 
     try {
-      final models.RowList result = await _appwriteService.searchProfiles(query: query);
+      final models.RowList result = await _appwriteService.searchProfiles(
+        query: query,
+      );
       // Get the profile ID of the current user to exclude it
-      final userProfiles = await _appwriteService.getUserProfiles(ownerId: _currentUser!.$id);
-      final selfProfileId = userProfiles.rows.isNotEmpty ? userProfiles.rows.first.$id : null;
+      final userProfiles = await _appwriteService.getUserProfiles(
+        ownerId: _currentUser!.$id,
+      );
+      final selfProfileId = userProfiles.rows.isNotEmpty
+          ? userProfiles.rows.first.$id
+          : null;
 
       final profiles = result.rows
           .where((row) => row.$id != selfProfileId) // Exclude self
@@ -120,15 +134,17 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
 
     final isFollowing = _followingProfileIds.contains(profileId);
     try {
+      if (_currentUserProfileId == null) return;
+
       if (isFollowing) {
-        await _appwriteService.unfollowProfile(
-          profileId: profileId,
-          followerId: _currentUser!.$id,
+        await _appwriteService.unfollowUser(
+          followerProfileId: _currentUserProfileId!,
+          followingProfileId: profileId,
         );
       } else {
-        await _appwriteService.followProfile(
-          profileId: profileId,
-          followerId: _currentUser!.$id,
+        await _appwriteService.followUser(
+          followerProfileId: _currentUserProfileId!,
+          followingProfileId: profileId,
         );
       }
       if (mounted) {
@@ -159,9 +175,7 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Find People'),
-      ),
+      appBar: AppBar(title: const Text('Find People')),
       body: Column(
         children: [
           Padding(
@@ -181,9 +195,7 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: _buildSearchResults(),
-          ),
+          Expanded(child: _buildSearchResults()),
         ],
       ),
     );
@@ -191,7 +203,7 @@ class _FindAccountPageScreenState extends State<FindAccountPageScreen> {
 
   Widget _buildSearchResults() {
     if (_currentUser == null) {
-       return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());

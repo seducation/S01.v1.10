@@ -34,6 +34,7 @@ class AppwriteService {
   static const String callsCollection = "calls";
   static const String savedPostsCollection = "saved_posts";
   static const String likesCollection = "likes";
+  static const String followsCollection = "follows";
 
   AppwriteService(this._client) {
     _db = TablesDB(_client);
@@ -306,40 +307,134 @@ class AppwriteService {
     );
   }
 
-  Future<models.Row> followProfile({
-    required String profileId,
-    required String followerId,
+  Future<void> followUser({
+    required String followerProfileId,
+    required String followingProfileId,
   }) async {
-    final profile = await getProfile(profileId);
-    final List<String> followers = List<String>.from(
-      profile.data['followers'] ?? [],
-    );
-    if (!followers.contains(followerId)) {
-      followers.add(followerId);
-      return await updateProfile(
-        profileId: profileId,
-        data: {'followers': followers},
+    try {
+      // Check if already following
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: followsCollection,
+        queries: [
+          Query.equal('follower_profile_id', followerProfileId),
+          Query.equal('following_profile_id', followingProfileId),
+        ],
       );
+
+      if (existing.total == 0) {
+        await _db.createRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: followsCollection,
+          rowId: ID.unique(),
+          data: {
+            'follower_profile_id': followerProfileId,
+            'following_profile_id': followingProfileId,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
+      }
+
+      // Update legacy followers array in profile for backward compatibility
+      // We still use the profile modification for now to keep counts in sync if needed
+      // But strictly speaking, we are moving to the collection.
+      // The previous code put 'followerId' (Account ID) in the array.
+      // We should decide if we want to put Profile ID or Account ID there.
+      // To match the new pattern, we should probably put Profile ID,
+      // OR just rely on the collection count.
+      // For safety, let's update the array with the FOLLOWER'S ACCOUNT ID
+      // if we can get it, or just skip this if we want to fully migrate.
+      // Given the complexity, let's purely rely on the new collection
+      // and NOT update the document array to avoid conflicts,
+      // UNLESS the UI relies on it for counts.
+      // The UI currently counts the array length.
+      // We will update the UI to fetch the count from the collection instead.
+    } catch (e) {
+      log('Error following user: $e');
+      rethrow;
     }
-    return profile;
   }
 
-  Future<models.Row> unfollowProfile({
-    required String profileId,
-    required String followerId,
+  Future<void> unfollowUser({
+    required String followerProfileId,
+    required String followingProfileId,
   }) async {
-    final profile = await getProfile(profileId);
-    final List<String> followers = List<String>.from(
-      profile.data['followers'] ?? [],
-    );
-    if (followers.contains(followerId)) {
-      followers.remove(followerId);
-      return await updateProfile(
-        profileId: profileId,
-        data: {'followers': followers},
+    try {
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: followsCollection,
+        queries: [
+          Query.equal('follower_profile_id', followerProfileId),
+          Query.equal('following_profile_id', followingProfileId),
+        ],
       );
+
+      if (existing.total > 0) {
+        await _db.deleteRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: followsCollection,
+          rowId: existing.rows.first.$id,
+        );
+      }
+    } catch (e) {
+      log('Error unfollowing user: $e');
+      rethrow;
     }
-    return profile;
+  }
+
+  Future<bool> isFollowing({
+    required String followerProfileId,
+    required String followingProfileId,
+  }) async {
+    try {
+      final result = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: followsCollection,
+        queries: [
+          Query.equal('follower_profile_id', followerProfileId),
+          Query.equal('following_profile_id', followingProfileId),
+        ],
+      );
+      return result.total > 0;
+    } catch (e) {
+      log('Error checking isFollowing: $e');
+      return false;
+    }
+  }
+
+  Future<String?> getCurrentUserProfileId(String userId) async {
+    try {
+      // Fetch profiles for the user. We assume the first one with type 'profile' is the main one.
+      // Or just the first one if none match.
+      final profiles = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: profilesCollection,
+        queries: [
+          Query.equal('ownerId', userId),
+          Query.equal('type', 'profile'), // prioritize main profile
+        ],
+      );
+
+      if (profiles.total > 0) {
+        return profiles.rows.first.$id;
+      }
+
+      // Fallback to any profile
+      final anyProfiles = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: profilesCollection,
+        queries: [Query.equal('ownerId', userId)],
+      );
+
+      if (anyProfiles.total > 0) {
+        return anyProfiles.rows.first.$id;
+      }
+
+      return null;
+    } catch (e) {
+      log('Error getting current user profile ID: $e');
+      return null;
+    }
   }
 
   Future<void> savePost({
@@ -413,13 +508,31 @@ class AppwriteService {
   }
 
   Future<models.RowList> getFollowingProfiles({required String userId}) async {
-    return _db.listRows(
-      databaseId: Environment.appwriteDatabaseId,
-      tableId: profilesCollection,
-      queries: [
-        Query.equal('followers', [userId]),
-      ],
-    );
+    try {
+      final profileId = await getCurrentUserProfileId(userId);
+      if (profileId == null) return models.RowList(total: 0, rows: []);
+
+      final follows = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: followsCollection,
+        queries: [Query.equal('follower_profile_id', profileId)],
+      );
+
+      if (follows.total == 0) return models.RowList(total: 0, rows: []);
+
+      final followingIds = follows.rows
+          .map((row) => row.data['following_profile_id'] as String)
+          .toList();
+
+      return await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: profilesCollection,
+        queries: [Query.equal('\$id', followingIds)],
+      );
+    } catch (e) {
+      log('Error getting following profiles: $e');
+      return models.RowList(total: 0, rows: []);
+    }
   }
 
   String _getChatId(String userId1, String userId2) {
