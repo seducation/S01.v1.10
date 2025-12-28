@@ -519,7 +519,7 @@ class _PostItemState extends State<PostItem> {
           return AspectRatio(
             aspectRatio: _controller!.value.aspectRatio,
             child: GestureDetector(
-              onTap: () {
+              onTapDown: (_) {
                 setState(() {
                   _controller!.value.isPlaying
                       ? _controller!.pause()
