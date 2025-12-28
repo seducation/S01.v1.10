@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'nav_rail_sidebar.dart';
 import 'bottom_nav_pane.dart';
 import 'extra_info_pane.dart';
-import 'master_list_pane.dart';
 
 /// A robust adaptive shell for the application.
 class AdaptiveScaffold extends StatelessWidget {
@@ -46,7 +45,7 @@ class AdaptiveScaffold extends StatelessWidget {
     );
   }
 
-  /// 2. Tablet (600px - 1024px): NavRail + Two Panes
+  /// 2. Tablet (600px - 1024px): NavRail + Single Pane
   Widget _buildTablet(BuildContext context) {
     return Scaffold(
       body: Row(
@@ -56,26 +55,7 @@ class AdaptiveScaffold extends StatelessWidget {
             onDestinationSelected: onIndexChanged,
           ),
           const VerticalDivider(width: 1, thickness: 1),
-          // Pane 1: Master List
           Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                AppBar(elevation: 0, title: const Text('List')),
-                Expanded(
-                  child: MasterListPane(
-                    items: List.generate(10, (i) => 'Item ${i + 1}'),
-                    selectedId: 0,
-                    onItemSelected: (_) {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const VerticalDivider(width: 1, thickness: 1),
-          // Pane 2: Primary Content
-          Expanded(
-            flex: 2,
             child: Column(
               children: [
                 AppBar(elevation: 0, title: Text(title)),
@@ -88,7 +68,7 @@ class AdaptiveScaffold extends StatelessWidget {
     );
   }
 
-  /// 3. Large Screens (> 1024px): NavRail + Three Panes
+  /// 3. Large Screens (> 1024px): NavRail + Dual Pane (Main + Extra Info)
   Widget _buildLarge(BuildContext context) {
     return Scaffold(
       body: Row(
@@ -99,24 +79,7 @@ class AdaptiveScaffold extends StatelessWidget {
             onDestinationSelected: onIndexChanged,
           ),
           const VerticalDivider(width: 1, thickness: 1),
-          // Master Pane (Pane 1)
-          Expanded(
-            flex: 3,
-            child: Column(
-              children: [
-                AppBar(elevation: 0, title: const Text('Records')),
-                Expanded(
-                  child: MasterListPane(
-                    items: List.generate(20, (i) => 'Record ${i + 1}'),
-                    selectedId: 0,
-                    onItemSelected: (_) {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const VerticalDivider(width: 1, thickness: 1),
-          // Detail Pane (Pane 2 - Main Content)
+          // Main Content
           Expanded(
             flex: 5,
             child: Column(
@@ -127,7 +90,7 @@ class AdaptiveScaffold extends StatelessWidget {
             ),
           ),
           const VerticalDivider(width: 1, thickness: 1),
-          // Extra Info Pane (Pane 3)
+          // Analytic / Extra Info Screen (Keep on Right Side)
           const Expanded(flex: 3, child: ExtraInfoPane()),
         ],
       ),
