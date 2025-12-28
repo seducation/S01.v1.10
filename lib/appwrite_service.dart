@@ -32,6 +32,8 @@ class AppwriteService {
   static const String storiesCollection = "stories";
   static const String notificationsCollection = "notifications";
   static const String callsCollection = "calls";
+  static const String savedPostsCollection = "saved_posts";
+  static const String likesCollection = "likes";
 
   AppwriteService(this._client) {
     _db = TablesDB(_client);
@@ -340,40 +342,74 @@ class AppwriteService {
     return profile;
   }
 
-  Future<models.Row> savePost({
+  Future<void> savePost({
     required String profileId,
     required String postId,
   }) async {
-    final profile = await getProfile(profileId);
-    final List<String> savedPosts = List<String>.from(
-      profile.data['savedPosts'] ?? [],
-    );
-    if (!savedPosts.contains(postId)) {
-      savedPosts.add(postId);
-      return await updateProfile(
-        profileId: profileId,
-        data: {'savedPosts': savedPosts},
-      );
+    final user = await getUser();
+    if (user == null) {
+      throw AppwriteException('User not authenticated', 401);
     }
-    return profile;
+
+    try {
+      // Check if already saved
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: savedPostsCollection,
+        queries: [
+          Query.equal('profile_id', profileId),
+          Query.equal('post_id', postId),
+        ],
+      );
+
+      if (existing.total == 0) {
+        await _db.createRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: savedPostsCollection,
+          rowId: ID.unique(),
+          data: {
+            'profile_id': profileId,
+            'post_id': postId,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+          permissions: [
+            Permission.read(Role.user(user.$id)),
+            Permission.update(Role.user(user.$id)),
+            Permission.delete(Role.user(user.$id)),
+          ],
+        );
+      }
+    } catch (e) {
+      log('Error saving post: $e');
+      rethrow;
+    }
   }
 
-  Future<models.Row> unsavePost({
+  Future<void> unsavePost({
     required String profileId,
     required String postId,
   }) async {
-    final profile = await getProfile(profileId);
-    final List<String> savedPosts = List<String>.from(
-      profile.data['savedPosts'] ?? [],
-    );
-    if (savedPosts.contains(postId)) {
-      savedPosts.remove(postId);
-      return await updateProfile(
-        profileId: profileId,
-        data: {'savedPosts': savedPosts},
+    try {
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: savedPostsCollection,
+        queries: [
+          Query.equal('profile_id', profileId),
+          Query.equal('post_id', postId),
+        ],
       );
+
+      if (existing.total > 0) {
+        await _db.deleteRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: savedPostsCollection,
+          rowId: existing.rows.first.$id,
+        );
+      }
+    } catch (e) {
+      log('Error unsaving post: $e');
+      rethrow;
     }
-    return profile;
   }
 
   Future<models.RowList> getFollowingProfiles({required String userId}) async {
@@ -544,6 +580,91 @@ class AppwriteService {
       rowId: postId,
       data: {'likes': likes, 'timestamp': timestamp},
     );
+  }
+
+  Future<void> likePost({
+    required String userId,
+    required String postId,
+  }) async {
+    try {
+      // Check if already liked to prevent duplicates
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: likesCollection,
+        queries: [
+          Query.equal('user_id', userId),
+          Query.equal('post_id', postId),
+        ],
+      );
+
+      if (existing.total == 0) {
+        await _db.createRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: likesCollection,
+          rowId: ID.unique(),
+          data: {
+            'user_id': userId,
+            'post_id': postId,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+          permissions: [
+            Permission.read(Role.user(userId)),
+            Permission.update(Role.user(userId)),
+            Permission.delete(Role.user(userId)),
+          ],
+        );
+      }
+    } catch (e) {
+      log('Error liking post: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> unlikePost({
+    required String userId,
+    required String postId,
+  }) async {
+    try {
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: likesCollection,
+        queries: [
+          Query.equal('user_id', userId),
+          Query.equal('post_id', postId),
+        ],
+      );
+
+      if (existing.total > 0) {
+        await _db.deleteRow(
+          databaseId: Environment.appwriteDatabaseId,
+          tableId: likesCollection,
+          rowId: existing.rows.first.$id,
+        );
+      }
+    } catch (e) {
+      log('Error unliking post: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> hasUserLikedPost({
+    required String userId,
+    required String postId,
+  }) async {
+    try {
+      final existing = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: likesCollection,
+        queries: [
+          Query.equal('user_id', userId),
+          Query.equal('post_id', postId),
+        ],
+      );
+      return existing.total > 0;
+    } catch (e) {
+      log('Error checking if user liked post: $e');
+      return false;
+    }
   }
 
   Future<void> deletePost(String postId) async {
@@ -1053,7 +1174,15 @@ class AppwriteService {
     final subscription = _realtime.subscribe([
       'databases.${Environment.appwriteDatabaseId}.collections.$collectionId.documents',
     ]);
-    subscription.stream.listen(callback);
+    subscription.stream.listen(
+      callback,
+      onError: (error) {
+        log('Realtime stream error: $error');
+      },
+      onDone: () {
+        log('Realtime stream closed for collection: $collectionId');
+      },
+    );
     return subscription;
   }
 

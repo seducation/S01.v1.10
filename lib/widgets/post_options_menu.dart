@@ -8,11 +8,15 @@ import 'package:provider/provider.dart';
 class PostOptionsMenu extends StatelessWidget {
   final Post post;
   final String profileId;
+  final bool isSaved;
+  final VoidCallback onSaveToggle;
 
   const PostOptionsMenu({
     super.key,
     required this.post,
     required this.profileId,
+    required this.isSaved,
+    required this.onSaveToggle,
   });
 
   @override
@@ -42,6 +46,16 @@ class PostOptionsMenu extends StatelessWidget {
                 const ListTile(
                   leading: Icon(Icons.translate),
                   title: Text('Translate and Transcript'),
+                ),
+                ListTile(
+                  leading: Icon(
+                    isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  ),
+                  title: Text(isSaved ? 'Unsave' : 'Save'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onSaveToggle();
+                  },
                 ),
                 if (isOwner) ...[
                   const Divider(),

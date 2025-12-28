@@ -13,8 +13,11 @@ class ChatMessagingScreen extends StatefulWidget {
   final ChatModel chat;
   final Function(String) onMessageSent;
 
-  const ChatMessagingScreen(
-      {super.key, required this.chat, required this.onMessageSent});
+  const ChatMessagingScreen({
+    super.key,
+    required this.chat,
+    required this.onMessageSent,
+  });
 
   @override
   State<ChatMessagingScreen> createState() => _ChatMessagingScreenState();
@@ -47,15 +50,19 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
       _currentUser = await _appwriteService.getUser();
       if (!mounted) return;
 
-      final senderProfiles = await _appwriteService.getUserProfiles(ownerId: _currentUser!.$id);
+      final senderProfiles = await _appwriteService.getUserProfiles(
+        ownerId: _currentUser!.$id,
+      );
       if (!mounted) return;
-      final userProfiles = senderProfiles.rows.where((p) => p.data['type'] == 'profile');
+      final userProfiles = senderProfiles.rows.where(
+        (p) => p.data['type'] == 'profile',
+      );
 
       if (userProfiles.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Go and create a profile first'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Go and create a profile first')),
+          );
         }
         setState(() {
           _isLoading = false;
@@ -63,15 +70,22 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
         return;
       }
 
-      final receiverChatProfile = await _appwriteService.getProfile(widget.chat.userId);
+      final receiverChatProfile = await _appwriteService.getProfile(
+        widget.chat.userId,
+      );
       _receiverOwnerId = receiverChatProfile.data['ownerId'];
       if (!mounted) return;
 
-      final receiverOwnerProfiles = await _appwriteService.getUserProfiles(ownerId: _receiverOwnerId!);
+      final receiverOwnerProfiles = await _appwriteService.getUserProfiles(
+        ownerId: _receiverOwnerId!,
+      );
       if (!mounted) return;
 
-      String nameToShow = receiverChatProfile.data['name']; // Default to current chat profile name
-      final receiverMainProfile = receiverOwnerProfiles.rows.where((p) => p.data['type'] == 'profile');
+      String nameToShow = receiverChatProfile
+          .data['name']; // Default to current chat profile name
+      final receiverMainProfile = receiverOwnerProfiles.rows.where(
+        (p) => p.data['type'] == 'profile',
+      );
       if (receiverMainProfile.isNotEmpty) {
         nameToShow = receiverMainProfile.first.data['name'];
       }
@@ -94,9 +108,9 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
       _subscribeToMessages();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error loading chat: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error loading chat: $e")));
         setState(() {
           _isLoading = false;
         });
@@ -105,19 +119,34 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
   }
 
   void _subscribeToMessages() {
-    const channel = 'databases.${Environment.appwriteDatabaseId}.collections.${AppwriteService.messagesCollection}.documents';
-    _subscription = _realtime.subscribe([channel]);
+    try {
+      const channel =
+          'databases.${Environment.appwriteDatabaseId}.collections.${AppwriteService.messagesCollection}.documents';
+      _subscription = _realtime.subscribe([channel]);
 
-    _subscription!.stream.listen((response) {
-      if (response.events.contains("databases.*.collections.*.documents.*.create")) {
-        final newDocument = models.Row.fromMap(response.payload);
-        if (newDocument.data['chatId'] == _chatId) {
-          setState(() {
-            _messages.insert(0, newDocument);
-          });
-        }
-      }
-    });
+      _subscription!.stream.listen(
+        (response) {
+          if (response.events.contains(
+            "databases.*.collections.*.documents.*.create",
+          )) {
+            final newDocument = models.Row.fromMap(response.payload);
+            if (newDocument.data['chatId'] == _chatId) {
+              setState(() {
+                _messages.insert(0, newDocument);
+              });
+            }
+          }
+        },
+        onError: (error) {
+          debugPrint('Realtime stream error: $error');
+        },
+        onDone: () {
+          debugPrint('Realtime stream closed');
+        },
+      );
+    } catch (e) {
+      debugPrint('Error subscribing to messages: $e');
+    }
   }
 
   String _getChatId(String userId1, String userId2) {
@@ -126,30 +155,46 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
   }
 
   Future<void> _handleSubmitted(String text) async {
-    if (text.trim().isEmpty || _currentUser == null || _receiverOwnerId == null) return;
+    if (text.trim().isEmpty ||
+        _currentUser == null ||
+        _receiverOwnerId == null) {
+      return;
+    }
 
-    final senderProfiles = await _appwriteService.getUserProfiles(ownerId: _currentUser!.$id);
+    final senderProfiles = await _appwriteService.getUserProfiles(
+      ownerId: _currentUser!.$id,
+    );
     if (!mounted) return;
-    final userProfiles = senderProfiles.rows.where((p) => p.data['type'] == 'profile');
+    final userProfiles = senderProfiles.rows.where(
+      (p) => p.data['type'] == 'profile',
+    );
 
     if (userProfiles.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Go and create a profile first'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Go and create a profile first')),
+        );
       }
       return;
     }
 
-    final receiverProfiles = await _appwriteService.getUserProfiles(ownerId: _receiverOwnerId!);
+    final receiverProfiles = await _appwriteService.getUserProfiles(
+      ownerId: _receiverOwnerId!,
+    );
     if (!mounted) return;
-    final receiverMainProfiles = receiverProfiles.rows.where((p) => p.data['type'] == 'profile');
+    final receiverMainProfiles = receiverProfiles.rows.where(
+      (p) => p.data['type'] == 'profile',
+    );
 
     if (receiverMainProfiles.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('This user does not have a main profile and cannot receive messages.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This user does not have a main profile and cannot receive messages.',
+            ),
+          ),
+        );
       }
       return;
     }
@@ -166,9 +211,9 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
       widget.onMessageSent(text.trim());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to send message: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to send message: $e")));
       _textController.text = text;
     }
   }
@@ -209,8 +254,8 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _messages.isEmpty
-                      ? _buildEmptyChatView()
-                      : _buildMessageList(),
+                  ? _buildEmptyChatView()
+                  : _buildMessageList(),
             ),
             const Divider(height: 1.0),
             Container(
@@ -263,7 +308,10 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.white,
-                prefixIcon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey),
+                prefixIcon: const Icon(
+                  Icons.emoji_emotions_outlined,
+                  color: Colors.grey,
+                ),
                 hintText: 'Message',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30.0),
@@ -295,7 +343,10 @@ class _ChatMessagingScreenState extends State<ChatMessagingScreen> {
           children: [
             Text(
               "No messages here yet...",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             SizedBox(height: 10),
             Text(

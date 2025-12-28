@@ -47,7 +47,9 @@ class _PostItemState extends State<PostItem> {
         widget.post.mediaUrls != null &&
         widget.post.mediaUrls!.isNotEmpty) {
       _controller =
-          VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrls!.first))
+          VideoPlayerController.networkUrl(
+              Uri.parse(widget.post.mediaUrls!.first),
+            )
             ..initialize().then((_) {
               if (mounted) {
                 setState(() {});
@@ -67,10 +69,23 @@ class _PostItemState extends State<PostItem> {
     final user = await _appwriteService.getUser();
     if (user != null) {
       _fetchCommentCount();
+      // Check server status for like
+      final serverLiked = await _appwriteService.hasUserLikedPost(
+        userId: user.$id,
+        postId: widget.post.id,
+      );
+      if (mounted) {
+        setState(() {
+          _isLiked = serverLiked;
+        });
+      }
     }
+
     if (mounted) {
       setState(() {
-        _isLiked = _prefs?.getBool(widget.post.id) ?? false;
+        if (user == null) {
+          _isLiked = _prefs?.getBool(widget.post.id) ?? false;
+        }
         _isSaved = _prefs?.getBool('saved_${widget.post.id}') ?? false;
       });
     }
@@ -96,9 +111,9 @@ class _PostItemState extends State<PostItem> {
     if (!mounted) return;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('You must be logged in to like posts.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to like posts.')),
+      );
       return;
     }
 
@@ -113,8 +128,26 @@ class _PostItemState extends State<PostItem> {
     }
 
     try {
+      // Optimistic update for the counter
       await _appwriteService.updatePostLikes(
-          widget.post.id, newLikeCount, widget.post.timestamp.toIso8601String());
+        widget.post.id,
+        newLikeCount,
+        widget.post.timestamp.toIso8601String(),
+      );
+
+      // Update the collection
+      if (newLikedState) {
+        await _appwriteService.likePost(
+          userId: user.$id,
+          postId: widget.post.id,
+        );
+      } else {
+        await _appwriteService.unlikePost(
+          userId: user.$id,
+          postId: widget.post.id,
+        );
+      }
+
       await _prefs!.setBool(widget.post.id, newLikedState);
     } catch (e) {
       if (mounted) {
@@ -122,9 +155,9 @@ class _PostItemState extends State<PostItem> {
           _isLiked = !newLikedState;
           _likeCount = _isLiked ? newLikeCount + 1 : newLikeCount - 1;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-        ));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -135,9 +168,9 @@ class _PostItemState extends State<PostItem> {
     if (!mounted) return;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('You must be logged in to save posts.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to save posts.')),
+      );
       return;
     }
 
@@ -152,10 +185,14 @@ class _PostItemState extends State<PostItem> {
     try {
       if (newSavedState) {
         await _appwriteService.savePost(
-            profileId: widget.profileId, postId: widget.post.id);
+          profileId: widget.profileId,
+          postId: widget.post.id,
+        );
       } else {
         await _appwriteService.unsavePost(
-            profileId: widget.profileId, postId: widget.post.id);
+          profileId: widget.profileId,
+          postId: widget.post.id,
+        );
       }
       await _prefs!.setBool('saved_${widget.post.id}', newSavedState);
     } catch (e) {
@@ -163,9 +200,11 @@ class _PostItemState extends State<PostItem> {
         setState(() {
           _isSaved = !newSavedState;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Failed to update saved status. Please try again.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update saved status. Please try again.'),
+          ),
+        );
       }
     }
   }
@@ -196,8 +235,9 @@ class _PostItemState extends State<PostItem> {
       return [];
     }
 
-    final profileFutures =
-        allProfileIds.map((id) => _appwriteService.getProfile(id));
+    final profileFutures = allProfileIds.map(
+      (id) => _appwriteService.getProfile(id),
+    );
     final profileRows = await Future.wait(profileFutures);
     return profileRows.map((row) => Profile.fromRow(row)).toList();
   }
@@ -228,7 +268,8 @@ class _PostItemState extends State<PostItem> {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundImage: CachedNetworkImageProvider(
-                        profile.profileImageUrl ?? ''),
+                      profile.profileImageUrl ?? '',
+                    ),
                   ),
                   title: Text(profile.name),
                   onTap: () {
@@ -262,26 +303,37 @@ class _PostItemState extends State<PostItem> {
           _buildHeader(context),
           if (widget.post.contentText.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Text(
                 widget.post.contentText,
                 style: const TextStyle(fontSize: 15, height: 1.3),
               ),
             ),
           _buildMedia(context),
-          if (widget.post.linkTitle != null && widget.post.linkTitle!.isNotEmpty)
+          if (widget.post.linkTitle != null &&
+              widget.post.linkTitle!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 8.0,
+              ),
               child: Text(
                 widget.post.linkTitle!,
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black87),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.black87,
+                ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12.0,
+              vertical: 8.0,
+            ),
             child: _buildActionBar(),
           ),
           const Divider(height: 1, color: Color(0xFFE0E0E0)),
@@ -323,9 +375,10 @@ class _PostItemState extends State<PostItem> {
           );
         } else {
           return Container(
-              height: 250,
-              color: Colors.grey[300],
-              child: const Center(child: CircularProgressIndicator()));
+            height: 250,
+            color: Colors.grey[300],
+            child: const Center(child: CircularProgressIndicator()),
+          );
         }
       case PostType.linkPreview:
         return _buildLinkPreview(context);
@@ -357,8 +410,9 @@ class _PostItemState extends State<PostItem> {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) =>
-                    ProfilePageScreen(profileId: widget.post.author.id)),
+              builder: (context) =>
+                  ProfilePageScreen(profileId: widget.post.author.id),
+            ),
           );
         }
       },
@@ -374,29 +428,38 @@ class _PostItemState extends State<PostItem> {
                   Text(
                     totalCount.toString(),
                     style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               )
             else
-              Builder(builder: (context) {
-                final bool isValidUrl = widget.post.author.profileImageUrl != null &&
-                    (widget.post.author.profileImageUrl!.startsWith('http') ||
-                        widget.post.author.profileImageUrl!.startsWith('https'));
-                if (isValidUrl) {
-                  return CircleAvatar(
-                    radius: 20,
-                    backgroundImage: CachedNetworkImageProvider(
-                        widget.post.author.profileImageUrl!),
-                    backgroundColor: Colors.grey[200],
-                  );
-                } else {
-                  return CircleAvatar(
-                      radius: 20, backgroundColor: Colors.grey[200]);
-                }
-              }),
+              Builder(
+                builder: (context) {
+                  final bool isValidUrl =
+                      widget.post.author.profileImageUrl != null &&
+                      (widget.post.author.profileImageUrl!.startsWith('http') ||
+                          widget.post.author.profileImageUrl!.startsWith(
+                            'https',
+                          ));
+                  if (isValidUrl) {
+                    return CircleAvatar(
+                      radius: 20,
+                      backgroundImage: CachedNetworkImageProvider(
+                        widget.post.author.profileImageUrl!,
+                      ),
+                      backgroundColor: Colors.grey[200],
+                    );
+                  } else {
+                    return CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.grey[200],
+                    );
+                  }
+                },
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -407,9 +470,10 @@ class _PostItemState extends State<PostItem> {
                       Text(
                         widget.post.author.name,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.black87),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
                       ),
                       if (widget.post.originalAuthor != null)
                         Flexible(
@@ -418,17 +482,20 @@ class _PostItemState extends State<PostItem> {
                               const SizedBox(width: 4),
                               Text(
                                 'by',
-                                style:
-                                    TextStyle(color: handleColor, fontSize: 14),
+                                style: TextStyle(
+                                  color: handleColor,
+                                  fontSize: 14,
+                                ),
                               ),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   widget.post.originalAuthor!.name,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.black87),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -444,7 +511,12 @@ class _PostItemState extends State<PostItem> {
                 ],
               ),
             ),
-            PostOptionsMenu(post: widget.post, profileId: widget.profileId),
+            PostOptionsMenu(
+              post: widget.post,
+              profileId: widget.profileId,
+              isSaved: _isSaved,
+              onSaveToggle: _toggleSaved,
+            ),
           ],
         ),
       ),
@@ -454,10 +526,12 @@ class _PostItemState extends State<PostItem> {
   Widget _buildImageContent(BuildContext context) {
     if (widget.post.mediaUrls == null || widget.post.mediaUrls!.isEmpty) {
       return AspectRatio(
-          aspectRatio: 1,
-          child: Container(
-              color: Colors.grey[200],
-              child: const Icon(Icons.error, color: Colors.grey)));
+        aspectRatio: 1,
+        child: Container(
+          color: Colors.grey[200],
+          child: const Icon(Icons.error, color: Colors.grey),
+        ),
+      );
     }
 
     if (widget.post.mediaUrls!.length > 1) {
@@ -478,13 +552,16 @@ class _PostItemState extends State<PostItem> {
                   width: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(color: Colors.grey[200])),
+                    aspectRatio: 1,
+                    child: Container(color: Colors.grey[200]),
+                  ),
                   errorWidget: (context, url, error) => AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.error, color: Colors.grey))),
+                    aspectRatio: 1,
+                    child: Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.error, color: Colors.grey),
+                    ),
+                  ),
                 );
               },
             ),
@@ -495,8 +572,10 @@ class _PostItemState extends State<PostItem> {
               return Container(
                 width: 8.0,
                 height: 8.0,
-                margin:
-                    const EdgeInsets.symmetric(vertical: 10.0, horizontal: 2.0),
+                margin: const EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 2.0,
+                ),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _currentPage == index
@@ -509,7 +588,8 @@ class _PostItemState extends State<PostItem> {
         ],
       );
     } else {
-      final bool isValidUrl = widget.post.mediaUrls!.first.startsWith('http') ||
+      final bool isValidUrl =
+          widget.post.mediaUrls!.first.startsWith('http') ||
           widget.post.mediaUrls!.first.startsWith('https');
       return GestureDetector(
         onTap: () {
@@ -521,19 +601,24 @@ class _PostItemState extends State<PostItem> {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => AspectRatio(
-                    aspectRatio: 1,
-                    child: Container(color: Colors.grey[200])),
+                  aspectRatio: 1,
+                  child: Container(color: Colors.grey[200]),
+                ),
                 errorWidget: (context, url, error) => AspectRatio(
-                    aspectRatio: 1,
-                    child: Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.error, color: Colors.grey))),
+                  aspectRatio: 1,
+                  child: Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.error, color: Colors.grey),
+                  ),
+                ),
               )
             : AspectRatio(
                 aspectRatio: 1,
                 child: Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.error, color: Colors.grey))),
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.error, color: Colors.grey),
+                ),
+              ),
       );
     }
   }
@@ -549,30 +634,34 @@ class _PostItemState extends State<PostItem> {
         }
       },
       child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE0E0E0)),
-            borderRadius: BorderRadius.circular(8.0),
+        margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          borderRadius: BorderRadius.circular(8.0),
+        ),
+        child: AnyLinkPreview(
+          link: widget.post.linkUrl!,
+          displayDirection: UIDirection.uiDirectionHorizontal,
+          showMultimedia: true,
+          bodyMaxLines: 3,
+          bodyTextOverflow: TextOverflow.ellipsis,
+          titleStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
-          child: AnyLinkPreview(
-            link: widget.post.linkUrl!,
-            displayDirection: UIDirection.uiDirectionHorizontal,
-            showMultimedia: true,
-            bodyMaxLines: 3,
-            bodyTextOverflow: TextOverflow.ellipsis,
-            titleStyle:
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            bodyStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            errorWidget: Container(
-                height: 100,
-                color: Colors.grey[300],
-                child: const Center(child: Text('Could not load preview'))),
-            cache: const Duration(days: 7),
-            backgroundColor: Colors.grey[100],
-            borderRadius: 8,
-            removeElevation: true,
-            urlLaunchMode: LaunchMode.inAppWebView,
-          )),
+          bodyStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          errorWidget: Container(
+            height: 100,
+            color: Colors.grey[300],
+            child: const Center(child: Text('Could not load preview')),
+          ),
+          cache: const Duration(days: 7),
+          backgroundColor: Colors.grey[100],
+          borderRadius: 8,
+          removeElevation: true,
+          urlLaunchMode: LaunchMode.inAppWebView,
+        ),
+      ),
     );
   }
 
@@ -612,7 +701,7 @@ class _PostItemState extends State<PostItem> {
             const SizedBox(width: 24),
             Icon(Icons.share, color: Colors.grey[600], size: 22),
           ],
-        )
+        ),
       ],
     );
   }
@@ -625,9 +714,10 @@ class _PostItemState extends State<PostItem> {
         Text(
           label,
           style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              fontWeight: FontWeight.w500),
+            color: Colors.grey[600],
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
