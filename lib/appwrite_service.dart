@@ -10,6 +10,7 @@ import 'package:my_app/environment.dart';
 import 'package:my_app/model/post.dart';
 import 'package:my_app/model/profile.dart';
 import 'package:my_app/utils/handle_system.dart';
+import 'package:my_app/calls/models/call_models.dart';
 
 class AppwriteService {
   final Client _client;
@@ -17,6 +18,7 @@ class AppwriteService {
   late Storage _storage;
   late Account _account;
   late Functions _functions;
+  late Realtime _realtime;
 
   Client get client => _client;
 
@@ -29,12 +31,14 @@ class AppwriteService {
   static const String playlistsCollection = "playlists";
   static const String storiesCollection = "stories";
   static const String notificationsCollection = "notifications";
+  static const String callsCollection = "calls";
 
   AppwriteService(this._client) {
     _db = TablesDB(_client);
     _storage = Storage(_client);
     _account = Account(_client);
     _functions = Functions(_client);
+    _realtime = Realtime(_client);
   }
 
   Future<String> getLiveKitToken({required String roomName}) async {
@@ -1037,6 +1041,100 @@ class AppwriteService {
       log('Device registered with Appwrite Messaging via Account service');
     } catch (e) {
       log('Error registering push target: $e');
+    }
+  }
+
+  // Call-related methods
+
+  Future<RealtimeSubscription> subscribeToCollection({
+    required String collectionId,
+    required Function(RealtimeMessage) callback,
+  }) async {
+    final subscription = _realtime.subscribe([
+      'databases.${Environment.appwriteDatabaseId}.collections.$collectionId.documents',
+    ]);
+    subscription.stream.listen(callback);
+    return subscription;
+  }
+
+  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    try {
+      final result = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: profilesCollection,
+        queries: [Query.equal('ownerId', userId)],
+      );
+      if (result.rows.isNotEmpty) {
+        return result.rows.first.data;
+      }
+      return null;
+    } catch (e) {
+      log('Error getting user profile: $e');
+      return null;
+    }
+  }
+
+  Future<void> createCallDocument(CallData callData) async {
+    await _db.createRow(
+      databaseId: Environment.appwriteDatabaseId,
+      tableId: callsCollection,
+      rowId: callData.callId,
+      data: callData.toJson(),
+      permissions: [
+        Permission.read(Role.user(callData.caller.userId)),
+        Permission.read(Role.user(callData.receiver.userId)),
+        Permission.update(Role.user(callData.caller.userId)),
+        Permission.update(Role.user(callData.receiver.userId)),
+      ],
+    );
+  }
+
+  Future<void> updateCallDocument({
+    required String callId,
+    required CallState status,
+    DateTime? acceptedAt,
+    DateTime? endedAt,
+    int? duration,
+  }) async {
+    await _db.updateRow(
+      databaseId: Environment.appwriteDatabaseId,
+      tableId: callsCollection,
+      rowId: callId,
+      data: {
+        'status': status.name,
+        if (acceptedAt != null) 'acceptedAt': acceptedAt.toIso8601String(),
+        if (endedAt != null) 'endedAt': endedAt.toIso8601String(),
+        if (duration != null) 'duration': duration,
+      },
+    );
+  }
+
+  Future<CallData?> getActiveCallForUser(String userId) async {
+    try {
+      final result = await _db.listRows(
+        databaseId: Environment.appwriteDatabaseId,
+        tableId: callsCollection,
+        queries: [
+          Query.or([
+            Query.equal('callerId', userId),
+            Query.equal('receiverId', userId),
+          ]),
+          Query.notEqual('status', [
+            CallState.ended.name,
+            CallState.rejected.name,
+            CallState.timeout.name,
+          ]),
+          Query.limit(1),
+        ],
+      );
+
+      if (result.rows.isNotEmpty) {
+        return CallData.fromJson(result.rows.first.data);
+      }
+      return null;
+    } catch (e) {
+      log('Error getting active call: $e');
+      return null;
     }
   }
 }
