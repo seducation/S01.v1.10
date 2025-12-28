@@ -6,6 +6,8 @@ import 'package:my_app/model/post.dart';
 import 'package:my_app/model/profile.dart';
 import 'package:my_app/profile_page.dart';
 import 'package:my_app/widgets/post_options_menu.dart';
+import 'package:my_app/post_detail_screen.dart';
+import 'package:my_app/full_screen_post_detail_page.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -32,6 +34,8 @@ class _PostItemState extends State<PostItem> {
   SharedPreferences? _prefs;
   VideoPlayerController? _controller;
   int _currentPage = 0;
+  List<Profile> _cachedAuthors = [];
+  bool _isLoadingAuthors = false;
 
   @override
   void initState() {
@@ -81,6 +85,16 @@ class _PostItemState extends State<PostItem> {
       }
     }
 
+    // Prefetch authors if needed for the UI
+    final bool hasAuthors =
+        widget.post.authorIds != null && widget.post.authorIds!.isNotEmpty;
+    final bool hasMultipleProfiles =
+        widget.post.profileIds != null && widget.post.profileIds!.length > 1;
+
+    if (hasAuthors || hasMultipleProfiles) {
+      _fetchPostAuthorsLocal();
+    }
+
     if (mounted) {
       setState(() {
         if (user == null) {
@@ -88,6 +102,30 @@ class _PostItemState extends State<PostItem> {
         }
         _isSaved = _prefs?.getBool('saved_${widget.post.id}') ?? false;
       });
+    }
+  }
+
+  Future<void> _fetchPostAuthorsLocal() async {
+    if (_isLoadingAuthors) return;
+    setState(() {
+      _isLoadingAuthors = true;
+    });
+
+    try {
+      final profiles = await _fetchPostAuthors();
+      if (mounted) {
+        setState(() {
+          _cachedAuthors = profiles;
+        });
+      }
+    } catch (e) {
+      // Handle error silently or log
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAuthors = false;
+        });
+      }
     }
   }
 
@@ -235,54 +273,156 @@ class _PostItemState extends State<PostItem> {
       return [];
     }
 
-    final profileFutures = allProfileIds.map(
+    // Simple deduplication if authorIds and profileIds overlap
+    // But since we are modifying UI, let's just fetch all unique IDs
+    // Note: authorIds might be user IDs, not profile IDs depending on implementation
+    // Assuming here they are profile IDs or fetchable via getProfile.
+    // If they are user IDs and getProfile handles it, great.
+
+    // Let's filter out duplicate IDs before mapping
+    final uniqueIds = allProfileIds.toSet().toList();
+
+    final profileFutures = uniqueIds.map(
       (id) => _appwriteService.getProfile(id),
     );
-    final profileRows = await Future.wait(profileFutures);
-    return profileRows.map((row) => Profile.fromRow(row)).toList();
+
+    // We might have failures if some IDs are invalid, so robust error handling would be good
+    // But keeping it simple as per original code structure
+    try {
+      final profileRows = await Future.wait(profileFutures);
+      return profileRows.map((row) => Profile.fromRow(row)).toList();
+    } catch (e) {
+      // If fetching fails, return empty list or handle appropriately
+      return [];
+    }
   }
 
   void _showPostAuthors() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
+        // Use cached authors if available to show immediately
+        // and fetch fresh if needed, or just rely on cached since fetching happened at init
+        if (_isLoadingAuthors) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        // If we haven't fetched yet (maybe failed?), try again or use future builder
+        if (_cachedAuthors.isNotEmpty) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    "In this post",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _cachedAuthors.length,
+                    itemBuilder: (context, index) {
+                      final profile = _cachedAuthors[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: CachedNetworkImageProvider(
+                            profile.profileImageUrl ?? '',
+                          ),
+                        ),
+                        title: Text(profile.name),
+                        onTap: () {
+                          Navigator.pop(
+                            context,
+                          ); // Close sheet before navigating
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ProfilePageScreen(profileId: profile.id),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return FutureBuilder<List<Profile>>(
           future: _fetchPostAuthors(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             if (snapshot.hasError) {
-              return const Center(child: Text('Error loading authors'));
+              return const SizedBox(
+                height: 200,
+                child: Center(child: Text('Error loading authors')),
+              );
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('No authors to show'));
+              return const SizedBox(
+                height: 200,
+                child: Center(child: Text('No authors to show')),
+              );
             }
 
             final profiles = snapshot.data!;
-            return ListView.builder(
-              shrinkWrap: true,
-              itemCount: profiles.length,
-              itemBuilder: (context, index) {
-                final profile = profiles[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: CachedNetworkImageProvider(
-                      profile.profileImageUrl ?? '',
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      "In this post",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  title: Text(profile.name),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ProfilePageScreen(profileId: profile.id),
-                      ),
-                    );
-                  },
-                );
-              },
+                  ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: profiles.length,
+                    itemBuilder: (context, index) {
+                      final profile = profiles[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: CachedNetworkImageProvider(
+                            profile.profileImageUrl ?? '',
+                          ),
+                        ),
+                        title: Text(profile.name),
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ProfilePageScreen(profileId: profile.id),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -320,12 +460,22 @@ class _PostItemState extends State<PostItem> {
                 horizontal: 12.0,
                 vertical: 8.0,
               ),
-              child: Text(
-                widget.post.linkTitle!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.black87,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PostDetailScreen(post: widget.post),
+                    ),
+                  );
+                },
+                child: Text(
+                  widget.post.linkTitle!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ),
@@ -350,27 +500,48 @@ class _PostItemState extends State<PostItem> {
         if (_controller != null && _controller!.value.isInitialized) {
           return AspectRatio(
             aspectRatio: _controller!.value.aspectRatio,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                VideoPlayer(_controller!),
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _controller!.value.isPlaying
-                          ? _controller!.pause()
-                          : _controller!.play();
-                    });
-                  },
-                  child: Icon(
-                    _controller!.value.isPlaying
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                    color: const Color.fromRGBO(255, 255, 255, 0.7),
-                    size: 60,
+            child: GestureDetector(
+              onDoubleTap: () {
+                if (!_isLiked) _toggleLike();
+              },
+              onLongPress: () {
+                Navigator.of(context).push(
+                  PageRouteBuilder(
+                    opaque: false,
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        FullScreenPostDetailPage(
+                          post: widget.post,
+                          initialIndex: 0,
+                          profileId: widget.profileId,
+                        ),
                   ),
+                );
+              },
+              child: Hero(
+                tag: 'post_media_${widget.post.id}_0',
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    VideoPlayer(_controller!),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _controller!.value.isPlaying
+                              ? _controller!.pause()
+                              : _controller!.play();
+                        });
+                      },
+                      child: Icon(
+                        _controller!.value.isPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: const Color.fromRGBO(255, 255, 255, 0.7),
+                        size: 60,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           );
         } else {
@@ -394,17 +565,14 @@ class _PostItemState extends State<PostItem> {
     final bool hasMultipleProfiles =
         widget.post.profileIds != null && widget.post.profileIds!.length > 1;
 
-    // Show hamburger icon if there is at least one author OR more than one profile.
-    final bool showHamburger = hasAuthors || hasMultipleProfiles;
-
-    // Calculate total count of authors and profiles.
-    final authorCount = widget.post.authorIds?.length ?? 0;
-    final profileCount = widget.post.profileIds?.length ?? 0;
-    final totalCount = authorCount + profileCount;
+    // Show stack if there is at least one author OR more than one profile.
+    // In reality, if it's just the main author, we use standard view.
+    // We only use the stack if there are multiple involved entities.
+    final bool showStack = (hasAuthors || hasMultipleProfiles);
 
     return GestureDetector(
       onTap: () {
-        if (showHamburger) {
+        if (showStack) {
           _showPostAuthors();
         } else {
           Navigator.push(
@@ -420,20 +588,72 @@ class _PostItemState extends State<PostItem> {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
         child: Row(
           children: [
-            if (showHamburger)
-              Row(
-                children: [
-                  const Icon(Icons.menu, size: 40, color: Colors.black54),
-                  const SizedBox(width: 8),
-                  Text(
-                    totalCount.toString(),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
+            if (showStack)
+              // If we have cached authors, show them. Else show loading or fallback.
+              SizedBox(
+                width: 60, // Sufficient width for overlap
+                height: 40,
+                child: Stack(
+                  children: [
+                    if (_isLoadingAuthors && _cachedAuthors.isEmpty)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: CircleAvatar(
+                          radius: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else if (_cachedAuthors.isNotEmpty)
+                      ...List.generate(
+                        _cachedAuthors.length > 3 ? 3 : _cachedAuthors.length,
+                        (index) {
+                          // Reverse index for rendering order if we want first on top?
+                          // Usually last in list is top in Stack.
+                          // We want first author on LEFT (bottom of stack visually or handled by position)
+                          // Let's position them: 0 -> Left, 1 -> mid, 2 -> right
+                          // To make them overlap nicely, the one on the RIGHT should probably be on TOP or BOTTOM depending on style.
+                          // Request: "horizontally overlapping each other"
+
+                          // Let's render first item at left (0), second at (15), third at (30).
+                          // We render them in reverse order so the first one is ON TOP? or normal order?
+                          // Material design usually puts 1st on top or last on top.
+                          // Let's try: Index 0 at left: 0. Index 2 at left: 30.
+                          // If we render 0, then 1, then 2 -> 2 is on top of 1.
+                          final profile = _cachedAuthors[index];
+                          return Positioned(
+                            left: index * 15.0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ), // White border for separation
+                              ),
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundImage: CachedNetworkImageProvider(
+                                  profile.profileImageUrl ?? '',
+                                ),
+                                backgroundColor: Colors.grey[200],
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    else
+                      // Fallback if no authors found yet or empty list
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundImage: CachedNetworkImageProvider(
+                            widget.post.author.profileImageUrl ?? '',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               )
             else
               Builder(
@@ -547,19 +767,40 @@ class _PostItemState extends State<PostItem> {
                 });
               },
               itemBuilder: (context, index) {
-                return CachedNetworkImage(
-                  imageUrl: widget.post.mediaUrls![index],
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => AspectRatio(
-                    aspectRatio: 1,
-                    child: Container(color: Colors.grey[200]),
-                  ),
-                  errorWidget: (context, url, error) => AspectRatio(
-                    aspectRatio: 1,
-                    child: Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.error, color: Colors.grey),
+                return GestureDetector(
+                  onDoubleTap: () {
+                    if (!_isLiked) _toggleLike();
+                  },
+                  onLongPress: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        opaque: false,
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            FullScreenPostDetailPage(
+                              post: widget.post,
+                              initialIndex: index,
+                              profileId: widget.profileId,
+                            ),
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: 'post_media_${widget.post.id}_$index',
+                    child: CachedNetworkImage(
+                      imageUrl: widget.post.mediaUrls![index],
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => AspectRatio(
+                        aspectRatio: 1,
+                        child: Container(color: Colors.grey[200]),
+                      ),
+                      errorWidget: (context, url, error) => AspectRatio(
+                        aspectRatio: 1,
+                        child: Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.error, color: Colors.grey),
+                        ),
+                      ),
                     ),
                   ),
                 );
@@ -592,23 +833,42 @@ class _PostItemState extends State<PostItem> {
           widget.post.mediaUrls!.first.startsWith('http') ||
           widget.post.mediaUrls!.first.startsWith('https');
       return GestureDetector(
+        onDoubleTap: () {
+          if (!_isLiked) _toggleLike();
+        },
+        onLongPress: () {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              opaque: false,
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  FullScreenPostDetailPage(
+                    post: widget.post,
+                    initialIndex: 0,
+                    profileId: widget.profileId,
+                  ),
+            ),
+          );
+        },
         onTap: () {
           // Handle image tap if necessary
         },
         child: isValidUrl
-            ? CachedNetworkImage(
-                imageUrl: widget.post.mediaUrls!.first,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(color: Colors.grey[200]),
-                ),
-                errorWidget: (context, url, error) => AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.error, color: Colors.grey),
+            ? Hero(
+                tag: 'post_media_${widget.post.id}_0',
+                child: CachedNetworkImage(
+                  imageUrl: widget.post.mediaUrls!.first,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(color: Colors.grey[200]),
+                  ),
+                  errorWidget: (context, url, error) => AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.error, color: Colors.grey),
+                    ),
                   ),
                 ),
               )
