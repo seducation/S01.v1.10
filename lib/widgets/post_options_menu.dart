@@ -47,6 +47,10 @@ class PostOptionsMenu extends StatelessWidget {
                   leading: Icon(Icons.translate),
                   title: Text('Translate and Transcript'),
                 ),
+                const ListTile(
+                  leading: Icon(Icons.queue_play_next),
+                  title: Text('Add to Queue'),
+                ),
                 ListTile(
                   leading: Icon(
                     isSaved ? Icons.bookmark : Icons.bookmark_border,
