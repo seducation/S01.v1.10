@@ -109,15 +109,7 @@ class AdaptiveScaffold extends StatelessWidget {
           ),
           const VerticalDivider(width: 1, thickness: 1),
           // Pane 2: Primary Content (Main Screen)
-          Expanded(
-            flex: 7,
-            child: Column(
-              children: [
-                AppBar(elevation: 0, title: Text(title)),
-                Expanded(child: screens[selectedIndex]),
-              ],
-            ),
-          ),
+          Expanded(flex: 7, child: screens[selectedIndex]),
         ],
       ),
     );
@@ -182,15 +174,7 @@ class AdaptiveScaffold extends StatelessWidget {
           ),
           const VerticalDivider(width: 1, thickness: 1),
           // Pane 2: Primary Content (Main Screen)
-          Expanded(
-            flex: 5,
-            child: Column(
-              children: [
-                AppBar(elevation: 0, title: Text(title)),
-                Expanded(child: screens[selectedIndex]),
-              ],
-            ),
-          ),
+          Expanded(flex: 5, child: screens[selectedIndex]),
           const VerticalDivider(width: 1, thickness: 1),
           // Pane 3: Analytic/Extra Info (Right Screen)
           const Expanded(flex: 3, child: ExtraInfoPane()),
