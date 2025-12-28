@@ -442,6 +442,7 @@ class _PostItemState extends State<PostItem> {
         children: [
           _buildHeader(context),
           _buildMedia(context),
+          if (widget.post.type == PostType.video) _buildVideoProgressBar(),
           _buildContentText(context),
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -518,6 +519,13 @@ class _PostItemState extends State<PostItem> {
           return AspectRatio(
             aspectRatio: _controller!.value.aspectRatio,
             child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _controller!.value.isPlaying
+                      ? _controller!.pause()
+                      : _controller!.play();
+                });
+              },
               onDoubleTap: () {
                 if (!_isLiked) _toggleLike();
               },
@@ -540,20 +548,79 @@ class _PostItemState extends State<PostItem> {
                   alignment: Alignment.center,
                   children: [
                     VideoPlayer(_controller!),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _controller!.value.isPlaying
-                              ? _controller!.pause()
-                              : _controller!.play();
-                        });
-                      },
-                      child: Icon(
-                        _controller!.value.isPlaying
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_filled,
-                        color: const Color.fromRGBO(255, 255, 255, 0.7),
-                        size: 60,
+                    // Overlay controls (only buttons, no progress bar)
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Play/Pause button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                _controller!.value.isPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _controller!.value.isPlaying
+                                      ? _controller!.pause()
+                                      : _controller!.play();
+                                });
+                              },
+                            ),
+                          ),
+                          // Time display
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          // Volume/Mute button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                _controller!.value.volume > 0
+                                    ? Icons.volume_up
+                                    : Icons.volume_off,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _controller!.setVolume(
+                                    _controller!.value.volume > 0 ? 0.0 : 1.0,
+                                  );
+                                });
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -940,6 +1007,41 @@ class _PostItemState extends State<PostItem> {
         ),
       ),
     );
+  }
+
+  Widget _buildVideoProgressBar() {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+      child: SliderTheme(
+        data: SliderThemeData(
+          trackHeight: 3.0,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+          activeTrackColor: Theme.of(context).primaryColor,
+          inactiveTrackColor: Colors.grey[300],
+          thumbColor: Theme.of(context).primaryColor,
+        ),
+        child: Slider(
+          value: _controller!.value.position.inMilliseconds.toDouble(),
+          min: 0.0,
+          max: _controller!.value.duration.inMilliseconds.toDouble(),
+          onChanged: (value) {
+            _controller!.seekTo(Duration(milliseconds: value.toInt()));
+          },
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
 
   Widget _buildActionBar() {
