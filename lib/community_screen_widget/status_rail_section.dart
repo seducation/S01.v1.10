@@ -11,10 +11,7 @@ import 'package:shimmer/shimmer.dart';
 class StatusRailSection extends StatefulWidget {
   final String title;
 
-  const StatusRailSection({
-    super.key,
-    required this.title,
-  });
+  const StatusRailSection({super.key, required this.title});
 
   @override
   State<StatusRailSection> createState() => _StatusRailSectionState();
@@ -44,12 +41,23 @@ class _StatusRailSectionState extends State<StatusRailSection> {
 
       if (user != null && mounted) {
         // Fetch current user's own profiles (all types)
-        final userProfilesResponse = await appwriteService.getUserProfiles(ownerId: user.id);
-        final userProfiles = userProfilesResponse.rows.map((row) => Profile.fromRow(row)).toList();
+        final userProfilesResponse = await appwriteService.getUserProfiles(
+          ownerId: user.id,
+        );
+        final userProfiles = userProfilesResponse.rows
+            .map((row) => Profile.fromRow(row))
+            .toList();
 
-        // Fetch profiles of users the current user is following
-        final followingProfilesResponse = await appwriteService.getFollowingProfiles(userId: user.id);
-        final followedProfiles = followingProfilesResponse.rows.map((row) => Profile.fromRow(row)).toList();
+        // Fetch profiles of users the current persona is following
+        final activeId = authService.activeIdentityId;
+        final followingProfilesResponse = await appwriteService
+            .getFollowingProfiles(
+              followerId: activeId,
+              userId: activeId == null ? user.id : null,
+            );
+        final followedProfiles = followingProfilesResponse.rows
+            .map((row) => Profile.fromRow(row))
+            .toList();
 
         // Combine all profiles, using a map to remove duplicates just in case
         final allProfilesMap = <String, Profile>{};
@@ -67,7 +75,9 @@ class _StatusRailSectionState extends State<StatusRailSection> {
         // Fetch all stories if there are any profiles
         if (profileIds.isNotEmpty) {
           final storiesResponse = await appwriteService.getStories(profileIds);
-          final allStories = storiesResponse.rows.map((row) => Story.fromRow(row)).toList();
+          final allStories = storiesResponse.rows
+              .map((row) => Story.fromRow(row))
+              .toList();
 
           // Group stories by profile ID
           final storiesMap = <String, List<Story>>{};
@@ -78,7 +88,11 @@ class _StatusRailSectionState extends State<StatusRailSection> {
 
           // Filter the combined list of profiles to only include those with stories
           _profilesWithStories = allProfiles
-              .where((profile) => _storiesMap.containsKey(profile.id) && _storiesMap[profile.id]!.isNotEmpty)
+              .where(
+                (profile) =>
+                    _storiesMap.containsKey(profile.id) &&
+                    _storiesMap[profile.id]!.isNotEmpty,
+              )
               .toList();
         }
       }
@@ -102,10 +116,7 @@ class _StatusRailSectionState extends State<StatusRailSection> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
             widget.title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ),
         const SizedBox(height: 12),
@@ -130,7 +141,8 @@ class _StatusRailSectionState extends State<StatusRailSection> {
                       ? ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: 5, // Placeholder count
-                          itemBuilder: (context, index) => const ShimmerCirclePlaceholder(),
+                          itemBuilder: (context, index) =>
+                              const ShimmerCirclePlaceholder(),
                         )
                       : ListView.builder(
                           scrollDirection: Axis.horizontal,
@@ -138,7 +150,10 @@ class _StatusRailSectionState extends State<StatusRailSection> {
                           itemBuilder: (context, index) {
                             final profile = _profilesWithStories[index];
                             final stories = _storiesMap[profile.id] ?? [];
-                            return StatusItemWidget(profile: profile, stories: stories);
+                            return StatusItemWidget(
+                              profile: profile,
+                              stories: stories,
+                            );
                           },
                         ),
                 ),
@@ -155,10 +170,7 @@ class _StatusRailSectionState extends State<StatusRailSection> {
 class AddToStoryWidget extends StatelessWidget {
   final VoidCallback onTap;
 
-  const AddToStoryWidget({
-    super.key,
-    required this.onTap,
-  });
+  const AddToStoryWidget({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -171,20 +183,13 @@ class AddToStoryWidget extends StatelessWidget {
             Stack(
               alignment: Alignment.center,
               children: [
-                const CircleAvatar(
-                  radius: 35,
-                  backgroundColor: Colors.grey,
-                ),
+                const CircleAvatar(radius: 35, backgroundColor: Colors.grey),
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white,
                   ),
-                  child: const Icon(
-                    Icons.add,
-                    color: Colors.black,
-                    size: 24,
-                  ),
+                  child: const Icon(Icons.add, color: Colors.black, size: 24),
                 ),
               ],
             ),
@@ -219,9 +224,12 @@ class StatusItemWidget extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (stories.isNotEmpty) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => StoryViewScreen(stories: stories, profile: profile),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) =>
+                  StoryViewScreen(stories: stories, profile: profile),
+            ),
+          );
         }
       },
       child: Container(
@@ -232,7 +240,9 @@ class StatusItemWidget extends StatelessWidget {
             CircleAvatar(
               radius: 35,
               backgroundImage: profile.profileImageUrl != null
-                  ? NetworkImage(appwriteService.getFileViewUrl(profile.profileImageUrl!))
+                  ? NetworkImage(
+                      appwriteService.getFileViewUrl(profile.profileImageUrl!),
+                    )
                   : null,
             ),
             const SizedBox(height: 8),
@@ -271,11 +281,7 @@ class ShimmerCirclePlaceholder extends StatelessWidget {
           Shimmer.fromColors(
             baseColor: Colors.grey.shade300,
             highlightColor: Colors.grey.shade100,
-            child: Container(
-              width: 60,
-              height: 10,
-              color: Colors.white,
-            ),
+            child: Container(width: 60, height: 10, color: Colors.white),
           ),
         ],
       ),

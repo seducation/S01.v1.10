@@ -1,8 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:my_app/appwrite_service.dart';
-import 'package:my_app/model/profile.dart';
-import 'package:provider/provider.dart';
+import 'package:my_app/one_time_message_screen.dart';
 
 class SentPostScreen extends StatelessWidget {
   final List<String> imagePaths;
@@ -26,19 +23,10 @@ class SentPostScreen extends StatelessWidget {
         ),
         body: Column(
           children: [
-            if (imagePaths.isNotEmpty)
-              SizedBox(
-                height: 200,
-                child: Image.file(
-                  File(imagePaths.first),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                ),
-              ),
-            const Expanded(
+            Expanded(
               child: TabBarView(
                 children: [
-                  OTMTab(),
+                  OTMSelectionList(imagePaths: imagePaths),
                   Center(child: Text('Chat')),
                   Center(child: Text('Other Apps')),
                   Center(child: Text('Post')),
@@ -49,88 +37,5 @@ class SentPostScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class OTMTab extends StatefulWidget {
-  const OTMTab({super.key});
-
-  @override
-  State<OTMTab> createState() => _OTMTabState();
-}
-
-class _OTMTabState extends State<OTMTab> {
-  late final AppwriteService _appwriteService;
-  List<Profile> _contacts = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _appwriteService = context.read<AppwriteService>();
-    _loadFollowingContacts();
-  }
-
-  Future<void> _loadFollowingContacts() async {
-    try {
-      final currentUser = await _appwriteService.getUser();
-      if (currentUser == null) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        return;
-      }
-      final profiles = await _appwriteService.getFollowingProfiles(userId: currentUser.$id);
-      if (!mounted) return;
-      setState(() {
-        _contacts = profiles.rows.map((doc) => Profile.fromMap(doc.data, doc.$id)).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _sendOTM(Profile contact, String imagePath) async {
-    try {
-      final currentUser = await _appwriteService.getUser();
-      if (currentUser != null) {
-        await _appwriteService.sendOneTimeMessage(
-          senderId: currentUser.$id,
-          receiverId: contact.id,
-          imagePath: imagePath,
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('One-time message sent!')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final imagePaths = (ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>)['images'] as List<String>;
-
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView.builder(
-            itemCount: _contacts.length,
-            itemBuilder: (context, index) {
-              final contact = _contacts[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(contact.profileImageUrl ?? ''),
-                ),
-                title: Text(contact.name),
-                onTap: () => _sendOTM(contact, imagePaths.first),
-              );
-            },
-          );
   }
 }

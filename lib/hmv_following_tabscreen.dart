@@ -36,19 +36,32 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
   }
 
   Future<void> _fetchUserProfile() async {
-    final user = await context.read<AuthService>().getCurrentUser();
-    if (user != null) {
-      try {
-        final profile = await _appwriteService.getUserProfiles(ownerId: user.id);
-        if (profile.rows.isNotEmpty) {
-          if (mounted) {
+    final authService = context.read<AuthService>();
+    if (authService.activeIdentityId != null) {
+      if (mounted) {
+        setState(() {
+          _userProfileId = authService.activeIdentityId;
+        });
+      }
+    } else {
+      final user = await authService.getCurrentUser();
+      if (user != null) {
+        try {
+          final mainProfileId = await _appwriteService.getMainUserProfileId(
+            user.id,
+          );
+          if (mounted && mainProfileId != null) {
             setState(() {
-              _userProfileId = profile.rows.first.$id;
+              _userProfileId = mainProfileId;
             });
           }
+        } catch (e) {
+          developer.log(
+            'Error fetching user profile: $e',
+            name: 'HMVFollowingTabscreen',
+            error: e,
+          );
         }
-      } catch (e) {
-        developer.log('Error fetching user profile: $e', name: 'HMVFollowingTabscreen', error: e);
       }
     }
   }
@@ -62,14 +75,21 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
 
     try {
       final posts = await _followingAlgorithm.fetchFollowingPosts();
-      developer.log('Fetched posts: ${posts.map((p) => p.id).toList()}', name: 'HMVFollowingTabscreen');
+      developer.log(
+        'Fetched posts: ${posts.map((p) => p.id).toList()}',
+        name: 'HMVFollowingTabscreen',
+      );
       if (!mounted) return;
       setState(() {
         _posts = posts;
         _isLoading = false;
       });
     } catch (e) {
-      developer.log('Error fetching posts: $e', name: 'HMVFollowingTabscreen', error: e);
+      developer.log(
+        'Error fetching posts: $e',
+        name: 'HMVFollowingTabscreen',
+        error: e,
+      );
       if (!mounted) return;
       setState(() {
         _error = 'An error occurred: $e';
@@ -81,9 +101,7 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _userProfileId == null) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -97,8 +115,9 @@ class _HMVFollowingTabscreenState extends State<HMVFollowingTabscreen> {
 
     if (_posts.isEmpty) {
       return const Center(
-        child:
-            Text('No posts yet. Follow some people to see their posts here.'),
+        child: Text(
+          'No posts yet. Follow some people to see their posts here.',
+        ),
       );
     }
 
