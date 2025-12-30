@@ -42,13 +42,21 @@ async function runAdAuction(databases, userInterests, limit = 5) {
 
         return rankedAds;
     } catch (error) {
-        // Handle missing collection error gracefully
-        if (error.code === 404 || error.message.includes('Collection with the requested ID')) {
-            console.warn('Ads collection not found, skipping ad auction.');
-            return [];
-        }
-        console.error('Error running ad auction:', error.message);
-        return [];
+        // Handle missing collection error gracefully or provide fallback
+        console.warn('Ad auction failed or collection missing, using fallback ad:', error.message);
+
+        // Return a fallback Propeller Ad or Partner Ad
+        return [{
+            $id: 'fallback_ad_' + Date.now(),
+            advertiserId: 'propeller_ads',
+            content: 'Check out our partners for amazing offers!',
+            mediaUrl: 'https://cdn.pixabay.com/photo/2016/10/09/08/32/digital-marketing-1725340_1280.jpg',
+            linkUrl: 'https://otieu.com/4/10334985',
+            targetTags: [],
+            eCPM: 5.0,
+            type: 'ad',
+            isActive: true
+        }];
     }
 }
 

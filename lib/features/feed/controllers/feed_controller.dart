@@ -56,7 +56,7 @@ class FeedController extends ChangeNotifier {
         body: jsonEncode({
           'sessionId': _sessionId,
           'offset': _offset,
-          'limit': 20,
+          'limit': 25,
           'postType': _postType,
         }),
       );
