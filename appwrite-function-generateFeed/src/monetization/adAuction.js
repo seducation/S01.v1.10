@@ -42,6 +42,11 @@ async function runAdAuction(databases, userInterests, limit = 5) {
 
         return rankedAds;
     } catch (error) {
+        // Handle missing collection error gracefully
+        if (error.code === 404 || error.message.includes('Collection with the requested ID')) {
+            console.warn('Ads collection not found, skipping ad auction.');
+            return [];
+        }
         console.error('Error running ad auction:', error.message);
         return [];
     }

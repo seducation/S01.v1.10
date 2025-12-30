@@ -13,8 +13,11 @@ async function getViralPosts(databases, limit = POOL_SIZES.VIRAL) {
             DATABASE_ID,
             COLLECTIONS.POSTS,
             [
-                Query.equal('isViral', true),
-                Query.orderDesc('engagementScore'),
+                Query.equal('status', 'active'),
+                Query.equal('isHidden', false),
+                // Query.greaterThan('likes', 100), // Removed due to missing schema
+                // Query.orderDesc('likes'), // Removed due to missing schema
+                Query.orderDesc('timestamp'),
                 Query.limit(limit)
             ]
         );
@@ -22,7 +25,8 @@ async function getViralPosts(databases, limit = POOL_SIZES.VIRAL) {
         return posts.documents.map(p => ({
             ...p,
             sourcePool: 'viral',
-            type: 'post'
+            type: 'post',
+            engagementScore: (p.likes || 0) + (p.comments || 0) + ((p.shares || 0) * 2)
         }));
     } catch (error) {
         console.error('Error fetching viral posts:', error.message);
@@ -43,7 +47,9 @@ async function getExplorationPosts(databases, limit = POOL_SIZES.EXPLORATION) {
             DATABASE_ID,
             COLLECTIONS.POSTS,
             [
-                Query.orderDesc('createdAt'),
+                Query.equal('status', 'active'),
+                Query.equal('isHidden', false),
+                Query.orderDesc('timestamp'),
                 Query.limit(100) // Get larger pool
             ]
         );
@@ -54,7 +60,8 @@ async function getExplorationPosts(databases, limit = POOL_SIZES.EXPLORATION) {
         return shuffled.slice(0, limit).map(p => ({
             ...p,
             sourcePool: 'exploration',
-            type: 'post'
+            type: 'post',
+            engagementScore: (p.likes || 0) + (p.comments || 0) + ((p.shares || 0) * 2)
         }));
     } catch (error) {
         console.error('Error fetching exploration posts:', error.message);

@@ -15,7 +15,7 @@ async function getSeenPostIds(databases, userId, sessionId) {
             DATABASE_ID,
             COLLECTIONS.SEEN_POSTS,
             [
-                Query.equal('userId', userId),
+                Query.equal('ownerId', userId), // userId param is ownerId passed from main
                 Query.greaterThan('seenAt', new Date(Date.now() - TIME.DAY).toISOString()),
                 Query.limit(500)
             ]
@@ -26,11 +26,11 @@ async function getSeenPostIds(databases, userId, sessionId) {
         // Get posts user quickly skipped (dwell < 1s) in last week
         const skipped = await databases.listDocuments(
             DATABASE_ID,
-            COLLECTIONS.USER_SIGNALS,
+            COLLECTIONS.OWNER_SIGNALS,
             [
-                Query.equal('userId', userId),
+                Query.equal('ownerId', userId),
                 Query.equal('signalType', 'skip'),
-                Query.greaterThan('createdAt', new Date(Date.now() - TIME.WEEK).toISOString()),
+                Query.greaterThan('timestamp', new Date(Date.now() - TIME.WEEK).toISOString()),
                 Query.limit(200)
             ]
         );
@@ -81,7 +81,7 @@ async function recordSeenPosts(databases, userId, sessionId, posts) {
                     COLLECTIONS.SEEN_POSTS,
                     ID.unique(),
                     {
-                        userId,
+                        ownerId: userId, // userId is ownerId
                         sessionId,
                         postId: post.postId || post.$id,
                         seenAt: new Date().toISOString()

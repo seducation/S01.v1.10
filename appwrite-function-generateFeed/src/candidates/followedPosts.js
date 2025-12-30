@@ -19,6 +19,10 @@ async function getFollowedPosts(databases, ownerId, limit = POOL_SIZES.FOLLOWED)
 
         const profileIds = userProfiles.documents.map(p => p.$id);
 
+        if (profileIds.length === 0) {
+            return [];
+        }
+
         // Step 2: Get profiles that ANY of user's profiles follow
         const follows = await databases.listDocuments(
             DATABASE_ID,

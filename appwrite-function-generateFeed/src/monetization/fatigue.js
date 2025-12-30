@@ -13,11 +13,11 @@ async function checkAdFatigue(databases, userId, sessionId) {
         // Get recent ad interactions in this session
         const recentSignals = await databases.listDocuments(
             DATABASE_ID,
-            COLLECTIONS.USER_SIGNALS,
+            COLLECTIONS.OWNER_SIGNALS,
             [
-                Query.equal('userId', userId),
+                Query.equal('ownerId', userId),
                 Query.equal('signalType', 'skip'),
-                Query.orderDesc('createdAt'),
+                Query.orderDesc('timestamp'),
                 Query.limit(10)
             ]
         );

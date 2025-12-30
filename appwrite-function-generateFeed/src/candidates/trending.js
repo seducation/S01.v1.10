@@ -16,8 +16,8 @@ async function getTrendingPosts(databases, limit = POOL_SIZES.TRENDING) {
             [
                 Query.equal('status', 'active'),
                 Query.equal('isHidden', false),
-                Query.greaterThan('likes', ENGAGEMENT.HIGH_ENGAGEMENT),
-                Query.orderDesc('likes'),
+                // Query.greaterThan('likes', ENGAGEMENT.HIGH_ENGAGEMENT), // Removed due to missing schema
+                // Query.orderDesc('likes'), // Removed due to missing schema
                 Query.orderDesc('timestamp'),
                 Query.limit(limit)
             ]

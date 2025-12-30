@@ -2,17 +2,17 @@
 
 module.exports = {
     // Database configuration
-    DATABASE_ID: 'main',
+    DATABASE_ID: 'gvone', // Updated to match flutter app id
 
     // Collection names
     COLLECTIONS: {
         POSTS: 'posts',
-        PROFILES: 'profiles',          // Changed: profiles not users (multi-profile system)
+        PROFILES: 'profiles',          // Multi-profile system
         FOLLOWS: 'follows',
-        LIKES: 'likes',                // Added: separate likes collection
-        COMMENTS: 'comments',          // Added: separate comments collection  
+        LIKES: 'likes',
+        COMMENTS: 'comments',
         ADS: 'ads',
-        OWNER_SIGNALS: 'owner_signals', // Changed: owner_signals not user_signals
+        OWNER_SIGNALS: 'owner_signals', // Owner-level signals
         CAROUSEL_MEMORY: 'carousel_memory',
         SEEN_POSTS: 'seen_posts',
     },

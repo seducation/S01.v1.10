@@ -1,5 +1,6 @@
 const { Client, Databases, Query, ID } = require('node-appwrite');
-const { DATABASE_ID, COLLECTIONS, POOL_SIZES, COLD_START_POOL_SIZES, FEED } = require('./config/constants');
+const { DATABASE_ID: DEFAULT_DATABASE_ID, COLLECTIONS, POOL_SIZES, COLD_START_POOL_SIZES, FEED } = require('./config/constants');
+const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || DEFAULT_DATABASE_ID;
 
 // Import candidate generators
 const { getFollowedPosts } = require('./candidates/followedPosts');
@@ -33,10 +34,42 @@ module.exports = async ({ req, res, log, error }) => {
         const { sessionId, offset = 0, limit = FEED.DEFAULT_LIMIT, postType = 'all' } = JSON.parse(req.body || '{}');
 
         // Initialize Appwrite client
-        const client = new Client()
-            .setEndpoint(process.env.APPWRITE_FUNCTION_ENDPOINT)
-            .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-            .setKey(process.env.APPWRITE_API_KEY);
+        const client = new Client();
+
+        // Safe endpoint handling
+        const endpoint = process.env.APPWRITE_FUNCTION_ENDPOINT;
+
+        // Check if endpoint is valid and not a placeholder like 'hostname'
+        if (endpoint && endpoint !== 'undefined' && !endpoint.includes('hostname')) {
+            client.setEndpoint(endpoint);
+        } else {
+            // Fallback to Frankfurt cloud endpoint if internal one is missing or invalid
+            const fallbackEndpoint = 'https://fra.cloud.appwrite.io/v1';
+            log(`Warning: APPWRITE_FUNCTION_ENDPOINT is '${endpoint}'. Falling back to specific: ${fallbackEndpoint}`);
+            client.setEndpoint(fallbackEndpoint);
+        }
+
+        const projectId = process.env.APPWRITE_FUNCTION_PROJECT_ID;
+        if (projectId) {
+            client.setProject(projectId);
+        } else {
+            const errorMsg = 'Critical: APPWRITE_FUNCTION_PROJECT_ID is missing';
+            error(errorMsg);
+            // We can't proceed without project ID
+            throw new Error(errorMsg);
+        }
+
+        const apiKey = process.env.APPWRITE_API_KEY;
+        if (apiKey && apiKey !== 'undefined') {
+            client.setKey(apiKey);
+        } else {
+            const errorMsg = 'Critical: APPWRITE_API_KEY is missing. Please set this in Appwrite Console > Functions > Settings > Variables';
+            error(errorMsg);
+            // We can't proceed without API key
+            throw new Error(errorMsg);
+        }
+
+        log(`Client config - Project: ${projectId}`);
 
         const databases = new Databases(client);
 
@@ -53,24 +86,37 @@ module.exports = async ({ req, res, log, error }) => {
         const safeLimit = Math.min(FEED.MAX_LIMIT, Math.max(1, parseInt(limit) || FEED.DEFAULT_LIMIT));
 
         // Step 1: Get owner's profiles and recent signals
-        const [userProfiles, recentSignals] = await Promise.all([
-            databases.listDocuments(DATABASE_ID, COLLECTIONS.PROFILES, [
-                Query.equal('ownerId', ownerId),
-                Query.limit(100)
-            ]),
-            databases.listDocuments(DATABASE_ID, COLLECTIONS.OWNER_SIGNALS, [
-                Query.equal('ownerId', ownerId),
-                Query.orderDesc('timestamp'),
-                Query.limit(20)
-            ])
-        ]);
+        log('Fetching profiles and signals...');
+        let userProfiles, recentSignals;
+        try {
+            [userProfiles, recentSignals] = await Promise.all([
+                databases.listDocuments(DATABASE_ID, COLLECTIONS.PROFILES, [
+                    Query.equal('ownerId', ownerId),
+                    Query.limit(100)
+                ]),
+                databases.listDocuments(DATABASE_ID, COLLECTIONS.OWNER_SIGNALS, [
+                    Query.equal('ownerId', ownerId),
+                    Query.orderDesc('timestamp'),
+                    Query.limit(20)
+                ])
+            ]);
+        } catch (dbErr) {
+            error(`Database error during candidate fetch: ${dbErr.message}`);
+            // Diagnostic log: check if it's really listDocuments
+            log(`Available database methods: ${Object.keys(databases).filter(k => k.startsWith('list'))}`);
+            throw dbErr;
+        }
 
         // Extract interests from first profile (or aggregate across all profiles)
         const userInterests = userProfiles.documents.length > 0
             ? (userProfiles.documents[0].interests || [])
             : [];
 
-        log(`User interests: ${userInterests.join(', ')}`);
+        if (userInterests.length > 0) {
+            log(`User interests: ${userInterests.join(', ')}`);
+        } else {
+            log('User has no interest tags defined');
+        }
 
         // Step 2: Build session context (patience, engagement state)
         let sessionContext = await buildSessionContext(
@@ -88,10 +134,15 @@ module.exports = async ({ req, res, log, error }) => {
 
         // Step 4: Determine if cold start (no follows)
         const profileIds = userProfiles.documents.map(p => p.$id);
-        const followsResult = await databases.listDocuments(DATABASE_ID, COLLECTIONS.FOLLOWS, [
-            Query.equal('follower_id', profileIds),
-            Query.limit(1)
-        ]);
+        let followsResult = { total: 0 };
+
+        if (profileIds.length > 0) {
+            followsResult = await databases.listDocuments(DATABASE_ID, COLLECTIONS.FOLLOWS, [
+                Query.equal('follower_id', profileIds),
+                Query.limit(1)
+            ]);
+        }
+
         const isColdStart = followsResult.total < 5;
 
         // Create a base query for postType if it's not 'all'
