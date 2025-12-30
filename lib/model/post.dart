@@ -29,6 +29,7 @@ class Post {
   final PostStats stats;
   final List<String>? authorIds;
   final List<String>? profileIds;
+  final List<String>? tags;
   double score;
   bool isLiked;
   bool isSaved;
@@ -49,6 +50,7 @@ class Post {
     required this.stats,
     this.authorIds,
     this.profileIds,
+    this.tags,
     this.score = 0.0,
     this.isLiked = false,
     this.isSaved = false,

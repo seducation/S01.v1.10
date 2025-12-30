@@ -1,4 +1,7 @@
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/model/post.dart';
+import 'package:my_app/model/profile.dart'; // Needed for Post constructor mocks if strict, or just use dummy
+import 'package:my_app/services/search_algorithm.dart';
 
 class SearchService {
   final AppwriteService _appwriteService;
@@ -14,46 +17,61 @@ class SearchService {
     final profiles = results[0].rows.map((row) {
       final data = row.data;
       data['\$id'] = row.data['\$id'];
-      return {'type': 'profile', 'data': data};
+      // Basic profile score based on name match
+      double score = 0.0;
+      final name = (data['name'] ?? '').toString().toLowerCase();
+      final q = query.toLowerCase();
+      if (name == q)
+        score = 2.0;
+      else if (name.startsWith(q))
+        score = 1.5;
+      else if (name.contains(q))
+        score = 1.0;
+
+      return {'type': 'profile', 'data': data, 'score': score};
     }).toList();
 
     final posts = results[1].rows.map((row) {
       final data = row.data;
       data['\$id'] = row.data['\$id'];
-      return {'type': 'post', 'data': data};
+
+      // Convert to Post object for scoring
+      // Minimal mapping required for SearchAlgorithm
+      final post = Post(
+        id: data['\$id'],
+        author: Profile(
+          id: '',
+          ownerId: '',
+          name: '',
+          type: 'profile',
+          createdAt: DateTime.now(),
+        ), // Dummy
+        timestamp: DateTime.tryParse(data['timestamp'] ?? '') ?? DateTime.now(),
+        contentText: data['caption'] ?? '',
+        linkTitle: data['titles'] ?? '',
+        stats: PostStats(
+          likes: data['likes'] ?? 0,
+          comments: data['comments'] ?? 0,
+          shares: data['shares'] ?? 0,
+          views: data['views'] ?? 0,
+        ),
+        tags: (data['tags'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList(),
+      );
+
+      final score = SearchAlgorithm.calculateScore(post, query);
+
+      return {'type': 'post', 'data': data, 'score': score};
     }).toList();
 
     final allResults = [...profiles, ...posts];
 
-    allResults.sort((a, b) => _calculateScore(b, query).compareTo(_calculateScore(a, query)));
+    // mixed sort by score
+    allResults.sort(
+      (a, b) => (b['score'] as double).compareTo(a['score'] as double),
+    );
 
     return allResults;
-  }
-
-  double _calculateScore(Map<String, dynamic> item, String query) {
-    double score = 0.0;
-    final data = item['data'];
-
-    if (item['type'] == 'profile') {
-      score += _getRelevance(data['name'], query) * 2.0; // Higher weight for name
-      score += _getRelevance(data['bio'], query);
-    } else if (item['type'] == 'post') {
-      score += _getRelevance(data['caption'], query) * 1.5;
-      score += _getRelevance(data['linkTitle'], query);
-      if (data['tags'] != null) {
-        for (final tag in data['tags']) {
-          score += _getRelevance(tag, query) * 1.2; // Weight for tags
-        }
-      }
-    }
-
-    return score;
-  }
-
-  double _getRelevance(String? text, String query) {
-    if (text != null && text.toLowerCase().contains(query.toLowerCase())) {
-      return 1.0;
-    }
-    return 0.0;
   }
 }
