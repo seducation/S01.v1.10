@@ -148,7 +148,7 @@ module.exports = async ({ req, res, log, error }) => {
         // Create a base query for postType if it's not 'all'
         const postTypeQueries = [];
         if (postType && postType !== 'all') {
-            postTypeQueries.push(Query.equal('postType', postType));
+            postTypeQueries.push(Query.equal('type', postType));
         }
 
         // Step 5: Generate candidates from multiple pools (in parallel)

@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/auth_service.dart';
 import 'package:provider/provider.dart';
-import 'dart:math';
-import 'package:my_app/model/post.dart';
-import 'model/profile.dart';
+
+import 'package:my_app/model/post.dart' as model;
+import 'package:my_app/model/profile.dart' as profile_model;
 import 'widgets/post_item.dart';
 
-double calculateScore(Post post) {
-  final hoursSincePosted = DateTime.now().difference(post.timestamp).inHours;
-  final score =
-      ((post.stats.likes * 1) +
-          (post.stats.comments * 5) +
-          (post.stats.shares * 10)) /
-      pow(hoursSincePosted + 2, 1.5);
-  return score;
-}
+// Feed imports
+import 'features/feed/controllers/feed_controller.dart';
+import 'features/feed/models/feed_item.dart' as feed_models;
+import 'features/feed/models/post_item.dart' as feed_models;
 
 class HMVFeaturesTabscreen extends StatefulWidget {
   const HMVFeaturesTabscreen({super.key});
@@ -24,236 +20,140 @@ class HMVFeaturesTabscreen extends StatefulWidget {
 }
 
 class _HMVFeaturesTabscreenState extends State<HMVFeaturesTabscreen> {
-  late AppwriteService _appwriteService;
-  List<Post> _posts = [];
-  bool _isLoading = true;
-  String? _profileId;
+  late FeedController _controller;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _appwriteService = context.read<AppwriteService>();
-    _fetchData();
+    final appwriteService = context.read<AppwriteService>();
+    final authService = context.read<AuthService>();
+
+    _controller = FeedController(
+      client: appwriteService.client,
+      userId: authService.currentUser?.id ?? '',
+      postType: 'all', // Fetch mixed feed
+    );
+
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _fetchData() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final user = await _appwriteService.getUser();
-      if (user != null) {
-        final profiles = await _appwriteService.getUserProfiles(
-          ownerId: user.$id,
-        );
-        if (profiles.rows.isNotEmpty) {
-          _profileId = profiles.rows.first.$id;
-        }
-      }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
 
-      final results = await Future.wait([
-        _appwriteService.getPosts(),
-        _appwriteService.getProfiles(),
-      ]);
-
-      final postsResponse = results[0];
-      final profilesResponse = results[1];
-
-      debugPrint(
-        'HMVFeaturesTabscreen: Fetched ${postsResponse.rows.length} posts raw.',
-      );
-      debugPrint(
-        'HMVFeaturesTabscreen: Fetched ${profilesResponse.rows.length} profiles.',
-      );
-
-      final profilesMap = {
-        for (var doc in profilesResponse.rows) doc.$id: doc.data
-      };
-
-      final postFutures = postsResponse.rows.map((row) async {
-        debugPrint('HMVFeaturesTabscreen: Processing post ${row.$id}');
-
-        final profileIds = row.data['profile_id'] as List?;
-        if (profileIds == null || profileIds.isEmpty) {
-            debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. profile_id list is null or empty.');
-            return null;
-        }
-        final profileId = profileIds.first as String?;
-        if (profileId == null) {
-            debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. First profile_id in list is null.');
-            return null;
-        }
-
-        final creatorProfileData = profilesMap[profileId];
-        if (creatorProfileData == null) {
-            debugPrint('HMVFeaturesTabscreen: Post ${row.$id} filtered. Author profile for ID $profileId not found in profilesMap. profilesMap keys: ${profilesMap.keys.toList()}');
-            return null;
-        }
-        
-        debugPrint('HMVFeaturesTabscreen: Post ${row.$id} passed all checks. Creating Post object.');
-
-        final author = Profile.fromMap(creatorProfileData, profileId);
-
-        final updatedAuthor = Profile(
-          id: author.id,
-          name: author.name,
-          type: author.type,
-          bio: author.bio,
-          profileImageUrl: author.profileImageUrl != null &&
-                  author.profileImageUrl!.isNotEmpty
-              ? _appwriteService.getFileViewUrl(author.profileImageUrl!)
-              : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-          ownerId: author.ownerId,
-          createdAt: author.createdAt,
-        );
-
-        final originalAuthorIds = row.data['author_id'] as List?;
-        final originalAuthorId = (originalAuthorIds?.isNotEmpty ?? false)
-            ? originalAuthorIds!.first as String?
-            : null;
-
-        Profile? originalAuthor;
-        if (originalAuthorId != null && originalAuthorId != profileId) {
-          final originalAuthorProfileData = profilesMap[originalAuthorId];
-          if (originalAuthorProfileData != null) {
-            originalAuthor =
-                Profile.fromMap(originalAuthorProfileData, originalAuthorId);
-          }
-        }
-
-        final fileIdsData = row.data['file_ids'];
-        final List<String> fileIds = fileIdsData is List
-            ? List<String>.from(fileIdsData.map((id) => id.toString()))
-            : [];
-
-        List<String> mediaUrls = [];
-        if (fileIds.isNotEmpty) {
-          mediaUrls = fileIds
-              .map((id) => _appwriteService.getFileViewUrl(id))
-              .toList();
-        }
-
-        String? postTypeString = row.data['type'];
-        final postType = await _getPostType(postTypeString, row.data['linkUrl'], fileIds);
-
-        final postStats = PostStats(
-          likes: row.data['likes'] ?? 0,
-          comments: row.data['comments'] ?? 0,
-          shares: row.data['shares'] ?? 0,
-          views: row.data['views'] ?? 0,
-        );
-
-        return Post(
-          id: row.$id,
-          author: updatedAuthor,
-          originalAuthor: originalAuthor,
-          timestamp:
-              DateTime.tryParse(row.data['timestamp'] ?? '') ?? DateTime.now(),
-          contentText: row.data['caption'] ?? '',
-          mediaUrls: mediaUrls,
-          type: postType,
-          stats: postStats,
-          linkUrl: row.data['linkUrl'],
-          linkTitle: row.data['titles'],
-          authorIds: (row.data['author_id'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList(),
-          profileIds: (row.data['profile_id'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList(),
-        );
-      });
-
-      final posts = (await Future.wait(postFutures)).whereType<Post>().toList();
-      
-      debugPrint('HMVFeaturesTabscreen: Finished mapping. Found ${posts.length} valid posts.');
-
-      if (!mounted) return;
-
-      debugPrint(
-        'HMVFeaturesTabscreen: Setting state with ${posts.length} valid posts.',
-      );
-
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
-      _rankPosts();
-    } catch (e, stackTrace) {
-      debugPrint('Error fetching data in HMVFeaturesTabscreen: $e');
-      debugPrint('Stack trace: $stackTrace');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _controller.loadFeed();
     }
   }
 
-  Future<PostType> _getPostType(String? type, String? linkUrl, List<String> fileIds) async {
-    if (type == 'video') {
-      return PostType.video;
-    }
-    if (fileIds.isNotEmpty) {
-      try {
-        final file = await _appwriteService.getFile(fileIds.first);
-        if (file.mimeType.startsWith('video/')) {
-          return PostType.video;
-        }
-        return PostType.image;
-      } catch (e) {
-        debugPrint('Error fetching file metadata: $e');
-        return PostType.image; // Assume image if metadata fetch fails
-      }
-    }
-    if (linkUrl != null && linkUrl.isNotEmpty) {
-      return PostType.linkPreview;
-    }
-    return PostType.text;
-  }
+  model.Post? _convertToModelPost(feed_models.FeedItem item) {
+    if (item is! feed_models.PostItem) return null;
 
-  void _rankPosts() {
-    if (!mounted) return;
-    final rankedPosts = List<Post>.from(_posts);
-    for (var post in rankedPosts) {
-      post.score = calculateScore(post);
+    // Infer post type based on media presence for mixed feed
+    model.PostType type = model.PostType.text;
+    if (item.mediaUrls.isNotEmpty) {
+      // Simple inference, ideally backend sends type.
+      // For now default to image if media exists, logic can be refined.
+      // Check extension if available in URL?
+      // The cloud function stores 'type' in DB, but FeedItem might not expose it easily yet
+      // unless we added it to FeedItem model.
+      // Assuming FeedItem extraction logic:
+      // If standard FeedController usage is adopted, we might need a precise type from backend.
+      // For now, let's look at extensions in URLs or default to image/video if known.
+      // Actually, FeedItem has 'mediaUrls'.
+      // Let's assume 'image' for simplicity if media exists, or 'video' if we can guess.
+      // For HMVFeatures, previously it did a fetch checks.
+      // Let's rely on backend 'postType' if available?
+      // FeedItem definition in prev context didn't show strict type field besides 'type' (post/ad/carousel).
+
+      // Fallback: Check if any URL looks like video
+      bool isVideo = item.mediaUrls.any(
+        (url) => url.contains('.mp4') || url.contains('.mov'),
+      );
+      type = isVideo ? model.PostType.video : model.PostType.image;
+    } else {
+      // Check for files?
     }
-    rankedPosts.sort((a, b) => b.score.compareTo(a.score));
-    setState(() {
-      _posts = rankedPosts;
-    });
+
+    return model.Post(
+      id: item.postId,
+      author: profile_model.Profile(
+        id: item.userId,
+        name: item.username,
+        type: 'profile',
+        profileImageUrl: item.profileImage,
+        ownerId: '',
+        createdAt: DateTime.now(),
+      ),
+      timestamp: item.createdAt,
+      contentText: item.content,
+      type: type,
+      mediaUrls: item.mediaUrls,
+      stats: model.PostStats(
+        likes: item.engagementScore,
+        views: item.viewCount,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildFeed(),
-    );
-  }
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: Scaffold(
+        body: Consumer<FeedController>(
+          builder: (context, controller, child) {
+            if (controller.isLoading && controller.feedItems.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-  Widget _buildFeed() {
-    return RefreshIndicator(
-      onRefresh: _fetchData,
-      child: _posts.isEmpty
-        ? ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.4,
+            if (controller.feedItems.isEmpty) {
+              if (controller.error != null) {
+                return Center(child: Text('Error: ${controller.error}'));
+              }
+              return const Center(child: Text("No posts available."));
+            }
+
+            return RefreshIndicator(
+              onRefresh: () => controller.refresh(),
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: controller.feedItems.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == controller.feedItems.length) {
+                    return controller.isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : const SizedBox.shrink();
+                  }
+
+                  final item = controller.feedItems[index];
+                  final post = _convertToModelPost(item);
+
+                  if (post == null) return const SizedBox.shrink();
+
+                  return PostItem(
+                    post: post,
+                    profileId: controller.userId,
+                    heroTagPrefix: 'hmv_features',
+                  );
+                },
               ),
-              const Center(child: Text("No posts available.")),
-            ],
-          )
-        : ListView.builder(
-            itemCount: _posts.length,
-            itemBuilder: (context, index) {
-              final post = _posts[index];
-              return PostItem(post: post, profileId: _profileId ?? '');
-            },
-          ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

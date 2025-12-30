@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/auth_service.dart';
 import 'package:provider/provider.dart';
-import 'dart:math';
-import 'package:my_app/model/post.dart';
-import 'model/profile.dart';
+
+import 'package:my_app/model/post.dart' as model;
+import 'package:my_app/model/profile.dart' as profile_model;
 import 'widgets/post_item.dart';
 
-double calculateScore(Post post) {
-  final hoursSincePosted = DateTime.now().difference(post.timestamp).inHours;
-  final score =
-      ((post.stats.likes * 1) +
-          (post.stats.comments * 5) +
-          (post.stats.shares * 10)) /
-      pow(hoursSincePosted + 2, 1.5);
-  return score;
-}
+// Feed imports
+import 'features/feed/controllers/feed_controller.dart';
+import 'features/feed/models/feed_item.dart' as feed_models;
+import 'features/feed/models/post_item.dart' as feed_models;
 
 class HmvFilesTabscreen extends StatefulWidget {
   const HmvFilesTabscreen({super.key});
@@ -24,206 +20,116 @@ class HmvFilesTabscreen extends StatefulWidget {
 }
 
 class _HmvFilesTabscreenState extends State<HmvFilesTabscreen> {
-  late AppwriteService _appwriteService;
-  List<Post> _posts = [];
-  bool _isLoading = true;
-  String? _profileId;
+  late FeedController _controller;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _appwriteService = context.read<AppwriteService>();
-    _fetchData();
+    final appwriteService = context.read<AppwriteService>();
+    final authService = context.read<AuthService>();
+
+    _controller = FeedController(
+      client: appwriteService.client,
+      userId: authService.currentUser?.id ?? '',
+      postType: 'file',
+    );
+
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _fetchData() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final user = await _appwriteService.getUser();
-      if (user != null) {
-        final profiles = await _appwriteService.getUserProfiles(
-          ownerId: user.$id,
-        );
-        if (profiles.rows.isNotEmpty) {
-          _profileId = profiles.rows.first.$id;
-        }
-      }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
 
-      final results = await Future.wait([
-        _appwriteService.getPosts(),
-        _appwriteService.getProfiles(),
-      ]);
-
-      final postsResponse = results[0];
-      final profilesResponse = results[1];
-
-      final profilesMap = {
-        for (var doc in profilesResponse.rows) doc.$id: doc.data,
-      };
-
-      final postFutures = postsResponse.rows.map((row) async {
-        final mediaFileIds = row.data['media_files'] as List?;
-        if (mediaFileIds == null || mediaFileIds.isEmpty) {
-          return null;
-        }
-
-        final mediaFiles = await Future.wait(
-          mediaFileIds.map((id) => _appwriteService.getFile(id as String)),
-        );
-
-        PostType postType;
-        final fileMimeTypes = mediaFiles.map((f) => f.mimeType).toSet();
-        if (fileMimeTypes.any((type) => type.contains('pdf') || type.contains('msword') || type.contains('wordprocessingml'))) {
-            postType = PostType.file;
-        } else {
-          return null;
-        }
-
-        final mediaUrls = mediaFiles
-            .map((file) => _appwriteService.getFileViewUrl(file.$id))
-            .whereType<String>()
-            .toList();
-
-        final profileIds = row.data['profile_id'] as List?;
-        if (profileIds == null || profileIds.isEmpty) {
-          return null;
-        }
-        final profileId = profileIds.first as String?;
-        if (profileId == null) {
-          return null;
-        }
-
-        final creatorProfileData = profilesMap[profileId];
-        if (creatorProfileData == null) {
-          return null;
-        }
-
-        final author = Profile.fromMap(creatorProfileData, profileId);
-
-        final updatedAuthor = Profile(
-          id: author.id,
-          name: author.name,
-          type: author.type,
-          bio: author.bio,
-          profileImageUrl:
-              author.profileImageUrl != null &&
-                      author.profileImageUrl!.isNotEmpty
-                  ? _appwriteService.getFileViewUrl(author.profileImageUrl!)
-                  : 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-          ownerId: author.ownerId,
-          createdAt: author.createdAt,
-        );
-
-        final originalAuthorIds = row.data['author_id'] as List?;
-        final originalAuthorId = (originalAuthorIds?.isNotEmpty ?? false)
-            ? originalAuthorIds!.first as String?
-            : null;
-
-        Profile? originalAuthor;
-        if (originalAuthorId != null && originalAuthorId != profileId) {
-          final originalAuthorProfileData = profilesMap[originalAuthorId];
-          if (originalAuthorProfileData != null) {
-            originalAuthor = Profile.fromMap(
-              originalAuthorProfileData,
-              originalAuthorId,
-            );
-          }
-        }
-        
-        final postStats = PostStats(
-          likes: row.data['likes'] ?? 0,
-          comments: row.data['comments'] ?? 0,
-          shares: row.data['shares'] ?? 0,
-          views: row.data['views'] ?? 0,
-        );
-
-        return Post(
-          id: row.$id,
-          author: updatedAuthor,
-          originalAuthor: originalAuthor,
-          timestamp:
-              DateTime.tryParse(row.data['timestamp'] ?? '') ??
-                  DateTime.now(),
-          contentText: row.data['caption'] ?? '',
-          mediaUrls: mediaUrls,
-          type: postType,
-          stats: postStats,
-          linkUrl: row.data['linkUrl'],
-          linkTitle: row.data['titles'],
-          authorIds: (row.data['author_id'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList(),
-          profileIds: (row.data['profile_id'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList(),
-        );
-      });
-
-      final posts = (await Future.wait(postFutures))
-          .whereType<Post>()
-          .toList();
-
-      if (!mounted) return;
-
-      _rankPosts(posts);
-      
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
-    } catch (e, stackTrace) {
-      debugPrint('Error fetching data in HmvFilesTabscreen: $e');
-      debugPrint('Stack trace: $stackTrace');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _controller.loadFeed();
     }
   }
 
-  void _rankPosts(List<Post> posts) {
-    if (!mounted) return;
-    final rankedPosts = List<Post>.from(posts);
-    for (var post in rankedPosts) {
-      post.score = calculateScore(post);
-    }
-    rankedPosts.sort((a, b) => b.score.compareTo(a.score));
-    setState(() {
-      _posts = rankedPosts;
-    });
+  model.Post? _convertToModelPost(feed_models.FeedItem item) {
+    if (item is! feed_models.PostItem) return null;
+
+    model.PostType type = model.PostType.file;
+
+    return model.Post(
+      id: item.postId,
+      author: profile_model.Profile(
+        id: item.userId,
+        name: item.username,
+        type: 'profile',
+        profileImageUrl: item.profileImage,
+        ownerId: '',
+        createdAt: DateTime.now(),
+      ),
+      timestamp: item.createdAt,
+      contentText: item.content,
+      type: type,
+      mediaUrls: item.mediaUrls,
+      stats: model.PostStats(
+        likes: item.engagementScore,
+        views: item.viewCount,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildFeed(),
-    );
-  }
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: Scaffold(
+        body: Consumer<FeedController>(
+          builder: (context, controller, child) {
+            if (controller.isLoading && controller.feedItems.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-  Widget _buildFeed() {
-    return RefreshIndicator(
-      onRefresh: _fetchData,
-      child: _posts.isEmpty
-          ? ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(height: MediaQuery.of(context).size.height * 0.4),
-                const Center(child: Text("No files available.")),
-              ],
-            )
-          : ListView.builder(
-              itemCount: _posts.length,
-              itemBuilder: (context, index) {
-                final post = _posts[index];
-                return PostItem(post: post, profileId: _profileId ?? '');
-              },
-            ),
+            if (controller.feedItems.isEmpty) {
+              if (controller.error != null) {
+                return Center(child: Text('Error: ${controller.error}'));
+              }
+              return const Center(child: Text("No files available."));
+            }
+
+            return RefreshIndicator(
+              onRefresh: () => controller.refresh(),
+              child: ListView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: controller.feedItems.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == controller.feedItems.length) {
+                    return controller.isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : const SizedBox.shrink();
+                  }
+
+                  final item = controller.feedItems[index];
+                  final post = _convertToModelPost(item);
+
+                  if (post == null) return const SizedBox.shrink();
+
+                  return PostItem(
+                    post: post,
+                    profileId: controller.userId,
+                    heroTagPrefix: 'hmv_files',
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

@@ -124,9 +124,20 @@ class PostOptionsMenu extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                const ListTile(
-                  leading: Icon(Icons.not_interested),
-                  title: Text('Not Interested'),
+                ListTile(
+                  leading: const Icon(Icons.report, color: Colors.red),
+                  title: const Text(
+                    'Report',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          _ReportPostDialog(post: post, reporterId: profileId),
+                    );
+                  },
                 ),
               ],
             );
@@ -164,6 +175,107 @@ class _DeletePostDialog extends StatelessWidget {
             Navigator.of(context).pop();
           },
           child: const Text('Yes'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportPostDialog extends StatefulWidget {
+  final Post post;
+  final String reporterId;
+
+  const _ReportPostDialog({required this.post, required this.reporterId});
+
+  @override
+  State<_ReportPostDialog> createState() => _ReportPostDialogState();
+}
+
+class _ReportPostDialogState extends State<_ReportPostDialog> {
+  final List<String> _reasons = [
+    'Spam',
+    'Inappropriate Content',
+    'Harassment',
+    'False Information',
+    'Other',
+  ];
+  String? _selectedReason;
+  bool _isSubmitting = false;
+
+  Future<void> _submitReport() async {
+    if (_selectedReason == null) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final appwriteService = Provider.of<AppwriteService>(
+        context,
+        listen: false,
+      );
+      await appwriteService.reportPost(
+        postId: widget.post.id,
+        reporterId: widget.reporterId,
+        reason: _selectedReason!,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report submitted successfully.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Report Post'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Select a reason for reporting this post:'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _selectedReason,
+            items: _reasons.map((reason) {
+              return DropdownMenuItem(value: reason, child: Text(reason));
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedReason = value;
+              });
+            },
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Reason',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSubmitting || _selectedReason == null
+              ? null
+              : _submitReport,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Report'),
         ),
       ],
     );

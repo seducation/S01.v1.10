@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_app/appwrite_service.dart';
+import 'package:my_app/auth_service.dart';
 import 'package:provider/provider.dart';
-import 'package:my_app/model/post.dart';
-import 'package:my_app/model/profile.dart';
+
+// Feed imports
+import 'features/feed/controllers/feed_controller.dart';
+import 'features/feed/models/post_item.dart' as feed_models;
 
 class HmvPhotosTabscreen extends StatefulWidget {
   const HmvPhotosTabscreen({super.key});
@@ -13,117 +17,109 @@ class HmvPhotosTabscreen extends StatefulWidget {
 }
 
 class _HmvPhotosTabscreenState extends State<HmvPhotosTabscreen> {
-  late AppwriteService _appwriteService;
-  List<Post> _posts = [];
-  bool _isLoading = true;
+  late FeedController _controller;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _appwriteService = context.read<AppwriteService>();
-    _fetchData();
+    final appwriteService = context.read<AppwriteService>();
+    final authService = context.read<AuthService>();
+
+    _controller = FeedController(
+      client: appwriteService.client,
+      userId: authService.currentUser?.id ?? '',
+      postType: 'image',
+    );
+
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _fetchData() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final postsResponse = await _appwriteService.getPosts();
-      final postFutures = postsResponse.rows.map((row) async {
-        final mediaFileIds = row.data['media_files'] as List?;
-        if (mediaFileIds == null || mediaFileIds.isEmpty) {
-          return null;
-        }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
 
-        final mediaFiles = await Future.wait(
-          mediaFileIds.map((id) => _appwriteService.getFile(id as String)),
-        );
-
-        final fileMimeTypes = mediaFiles.map((f) => f.mimeType).toSet();
-        if (!fileMimeTypes.any((type) => type.startsWith('image/'))) {
-          return null;
-        }
-
-        final mediaUrls = mediaFiles
-            .map((file) => _appwriteService.getFileViewUrl(file.$id))
-            .whereType<String>()
-            .toList();
-
-        // Create a dummy profile for now, since we don't need author info in the grid
-        final author = Profile(
-          id: 'temp_id',
-          name: 'temp_name',
-          ownerId: 'temp_owner',
-          type: 'profile', // Placeholder
-          createdAt: DateTime.now(), // Placeholder
-        );
-
-        return Post(
-          id: row.$id,
-          author: author,
-          timestamp: DateTime.now(), // Placeholder
-          contentText: '', // Placeholder
-          mediaUrls: mediaUrls,
-          type: PostType.image,
-          stats: PostStats(),
-        );
-      });
-
-      final posts = (await Future.wait(postFutures)).whereType<Post>().toList();
-
-      if (!mounted) return;
-
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
-    } catch (e, stackTrace) {
-      debugPrint('Error fetching data in HmvPhotosTabscreen: $e');
-      debugPrint('Stack trace: $stackTrace');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _controller.loadFeed();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildPhotoGrid(),
-    );
-  }
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: Scaffold(
+        body: Consumer<FeedController>(
+          builder: (context, controller, child) {
+            if (controller.isLoading && controller.feedItems.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-  Widget _buildPhotoGrid() {
-    return RefreshIndicator(
-      onRefresh: _fetchData,
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // 3 items per row
-          crossAxisSpacing: 4, // spacing between columns
-          mainAxisSpacing: 4, // spacing between rows
+            if (controller.feedItems.isEmpty) {
+              if (controller.error != null) {
+                return Center(child: Text('Error: ${controller.error}'));
+              }
+              return const Center(child: Text("No photos available."));
+            }
+
+            return RefreshIndicator(
+              onRefresh: () => controller.refresh(),
+              child: GridView.builder(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, // 3 items per row
+                  crossAxisSpacing: 4, // spacing between columns
+                  mainAxisSpacing: 4, // spacing between rows
+                ),
+                itemCount: controller.feedItems.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == controller.feedItems.length) {
+                    return controller.isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : const SizedBox.shrink();
+                  }
+
+                  final item =
+                      controller.feedItems[index]; // Use feedItems directly
+
+                  // For GridView, we just need the image URL and ID.
+                  // We can get this directly from FeedItem if it's a PostItem
+                  if (item is! feed_models.PostItem)
+                    return const SizedBox.shrink();
+
+                  if (item.mediaUrls.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return GestureDetector(
+                    onTap: () {
+                      context.push('/post/${item.postId}');
+                    },
+                    child: CachedNetworkImage(
+                      imageUrl: item.mediaUrls.first,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          Container(color: Colors.grey),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
-        itemCount: _posts.length,
-        itemBuilder: (context, index) {
-          final post = _posts[index];
-          if (post.mediaUrls == null || post.mediaUrls!.isEmpty) {
-            return const SizedBox.shrink(); // Don't render if no image
-          }
-          return GestureDetector(
-            onTap: () {
-              context.push('/post/${post.id}');
-            },
-            child: Image.network(
-              post.mediaUrls!.first,
-              fit: BoxFit.cover,
-            ),
-          );
-        },
       ),
     );
   }

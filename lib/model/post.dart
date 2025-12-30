@@ -8,7 +8,12 @@ class PostStats {
   final int shares;
   final int views;
 
-  PostStats({this.likes = 0, this.comments = 0, this.shares = 0, this.views = 0});
+  PostStats({
+    this.likes = 0,
+    this.comments = 0,
+    this.shares = 0,
+    this.views = 0,
+  });
 }
 
 class Post {
@@ -27,6 +32,9 @@ class Post {
   double score;
   bool isLiked;
   bool isSaved;
+  int reportCount;
+  bool isBlocked;
+  DateTime? blockedAt;
 
   Post({
     required this.id,
@@ -44,5 +52,8 @@ class Post {
     this.score = 0.0,
     this.isLiked = false,
     this.isSaved = false,
+    this.reportCount = 0,
+    this.isBlocked = false,
+    this.blockedAt,
   });
 }

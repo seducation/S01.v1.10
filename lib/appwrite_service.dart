@@ -821,6 +821,31 @@ class AppwriteService {
     }
   }
 
+  Future<void> reportPost({
+    required String postId,
+    required String reporterId,
+    required String reason,
+  }) async {
+    try {
+      final result = await _functions.createExecution(
+        functionId: 'report-post',
+        body: jsonEncode({
+          'postId': postId,
+          'reporterId': reporterId,
+          'reason': reason,
+        }),
+      );
+
+      final response = jsonDecode(result.responseBody);
+      if (response['success'] == false) {
+        throw AppwriteException(response['message']);
+      }
+    } catch (e) {
+      log('Error reporting post: $e');
+      rethrow;
+    }
+  }
+
   Future<bool> hasUserLikedPost({
     required String userId,
     required String postId,
@@ -1360,12 +1385,6 @@ class AppwriteService {
       queries: [Query.equal('userId', user.$id), Query.orderDesc('timestamp')],
     );
   }
-
-  Future<void> reportPost({
-    required String postId,
-    required String reportedBy,
-    required String reason,
-  }) async {}
 
   Future<void> registerDevice(String deviceToken) async {
     final user = await getUser();

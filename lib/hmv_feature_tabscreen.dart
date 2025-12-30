@@ -65,17 +65,6 @@ class _HmvFeatureTabScreenState extends State<HmvFeatureTabScreen> {
     return ChangeNotifierProvider.value(
       value: _controller,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Feed'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined),
-              onPressed: () {
-                // Navigate to notifications
-              },
-            ),
-          ],
-        ),
         body: Consumer<FeedController>(
           builder: (context, controller, child) {
             // Error state
