@@ -143,6 +143,59 @@ class AuthService with ChangeNotifier {
     await init(); // Update login state
   }
 
+  // --- OAuth Authentication ---
+
+  /// Signs in or signs up using OAuth provider (Google, GitHub, Apple, etc.)
+  /// Automatically creates a new account if the user doesn't exist.
+  ///
+  /// [provider] - OAuth provider name (e.g., 'google', 'github', 'apple')
+  /// [context] - BuildContext for navigation (optional, but recommended for Web)
+  ///
+  /// Throws [AppwriteException] on error
+  Future<void> signInWithOAuth(String provider, {BuildContext? context}) async {
+    try {
+      // Create OAuth2 session with Appwrite
+      // This will redirect to provider's login page and back to the app
+      // On Web: Uses popup/redirect
+      // On Mobile: Uses deep links (requires platform configuration)
+      await account.createOAuth2Session(
+        provider: OAuthProvider.values.firstWhere(
+          (p) => p.name.toLowerCase() == provider.toLowerCase(),
+          orElse: () =>
+              throw Exception('Unsupported OAuth provider: $provider'),
+        ),
+        // Success URL - where to redirect after successful auth
+        // Failure URL - where to redirect on error
+        // These are optional and use default Appwrite redirect URLs if not specified
+      );
+
+      // After OAuth redirect completes, update the session state
+      await init();
+
+      // Save login state to local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('loggedIn', true);
+      if (_currentUser?.email != null) {
+        await prefs.setString('email', _currentUser!.email);
+      }
+
+      notifyListeners();
+    } on AppwriteException catch (e) {
+      // Handle common OAuth errors
+      if (e.code == 401) {
+        throw Exception('OAuth authentication failed. Please try again.');
+      } else if (e.code == 409) {
+        throw Exception('An account with this email already exists.');
+      } else if (e.message?.contains('user_cancelled') ?? false) {
+        throw Exception('Login cancelled by user.');
+      } else {
+        throw Exception('OAuth error: ${e.message ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      throw Exception('Failed to sign in with $provider: ${e.toString()}');
+    }
+  }
+
   Future<User?> getCurrentUser() async {
     return _currentUser;
   }
