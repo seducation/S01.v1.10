@@ -61,7 +61,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                               ),
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                color: plan.color.withOpacity(0.1),
+                                color: plan.color.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
