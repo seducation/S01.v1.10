@@ -44,6 +44,7 @@ import 'package:my_app/adaptive_ui/adaptive_scaffold.dart';
 import 'package:my_app/provider/queue_provider.dart';
 import 'package:my_app/model/post.dart';
 import 'package:my_app/full_screen_post_detail_page.dart';
+import 'upgrade_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -125,8 +126,12 @@ class MyApp extends StatelessWidget {
       builder: (context, theme, child) {
         return MaterialApp.router(
           routerConfig: router,
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
+          theme: ThemeData.light().copyWith(
+            scaffoldBackgroundColor: theme.customBackgroundColor,
+          ),
+          darkTheme: ThemeData.dark().copyWith(
+            scaffoldBackgroundColor: theme.customBackgroundColor,
+          ),
           themeMode: theme.themeMode,
         );
       },
@@ -139,8 +144,7 @@ GoRouter _createRouter(AuthService authService) {
     refreshListenable: authService,
     redirect: (BuildContext context, GoRouterState state) {
       final loggedIn = authService.isLoggedIn;
-      final isPublicRoute =
-          state.matchedLocation == '/signin' ||
+      final isPublicRoute = state.matchedLocation == '/signin' ||
           state.matchedLocation == '/signup' ||
           state.matchedLocation == '/verify-otp';
 
@@ -337,6 +341,10 @@ GoRouter _createRouter(AuthService authService) {
             },
           );
         },
+      ),
+      GoRoute(
+        path: '/upgrade',
+        builder: (context, state) => const UpgradeScreen(),
       ),
     ],
   );

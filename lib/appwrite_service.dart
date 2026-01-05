@@ -861,19 +861,6 @@ class AppwriteService {
     );
   }
 
-  Future<void> updatePostLikes(
-    String postId,
-    int likes,
-    String timestamp,
-  ) async {
-    await _db.updateRow(
-      databaseId: Environment.appwriteDatabaseId,
-      tableId: postsCollection,
-      rowId: postId,
-      data: {'likes': likes, 'timestamp': timestamp},
-    );
-  }
-
   Future<void> likePost({
     required String userId,
     required String postId,

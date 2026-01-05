@@ -99,11 +99,6 @@ class _FullScreenPostDetailPageState extends State<FullScreenPostDetailPage> {
     }
 
     try {
-      await _appwriteService.updatePostLikes(
-        widget.post.id,
-        newLikeCount,
-        widget.post.timestamp.toIso8601String(),
-      );
       await _prefs!.setBool(widget.post.id, newLikedState);
     } catch (e) {
       if (mounted) {

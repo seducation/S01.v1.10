@@ -226,11 +226,11 @@ class _PostItemState extends State<PostItem> {
 
     try {
       // Optimistic update for the counter
-      await _appwriteService.updatePostLikes(
-        widget.post.id,
-        newLikeCount,
-        widget.post.timestamp.toIso8601String(),
-      );
+      // await _appwriteService.updatePostLikes(
+      //   widget.post.id,
+      //   newLikeCount,
+      //   widget.post.timestamp.toIso8601String(),
+      // );
 
       // Update the collection
       if (newLikedState) {

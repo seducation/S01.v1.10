@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'theme_model.dart';
 
 class SettingThemeScreen extends StatefulWidget {
   const SettingThemeScreen({super.key});
@@ -16,7 +18,8 @@ class _SettingThemeScreenState extends State<SettingThemeScreen> {
   TimeOfDay _startTime = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 7, minute: 0);
 
-  Future<void> _selectTime(BuildContext context, {required bool isStart}) async {
+  Future<void> _selectTime(BuildContext context,
+      {required bool isStart}) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: isStart ? _startTime : _endTime,
@@ -47,6 +50,8 @@ class _SettingThemeScreenState extends State<SettingThemeScreen> {
         children: [
           _buildThemeSection(),
           const SizedBox(height: 24),
+          _buildBackgroundColorSection(),
+          const SizedBox(height: 24),
           _buildAppIconSection(),
           const SizedBox(height: 24),
           _buildScheduleSection(),
@@ -73,19 +78,123 @@ class _SettingThemeScreenState extends State<SettingThemeScreen> {
               segments: const [
                 ButtonSegment(value: ThemeOptions.light, label: Text('Light')),
                 ButtonSegment(value: ThemeOptions.dark, label: Text('Dark')),
-                ButtonSegment(value: ThemeOptions.system, label: Text('System')),
+                ButtonSegment(
+                    value: ThemeOptions.system, label: Text('System')),
               ],
               selected: {_selectedTheme},
               onSelectionChanged: (Set<ThemeOptions> newSelection) {
                 setState(() {
                   _selectedTheme = newSelection.first;
                 });
+                // Update the ThemeModel
+                final themeModel = context.read<ThemeModel>();
+                ThemeMode mode;
+                switch (_selectedTheme) {
+                  case ThemeOptions.light:
+                    mode = ThemeMode.light;
+                    break;
+                  case ThemeOptions.dark:
+                    mode = ThemeMode.dark;
+                    break;
+                  case ThemeOptions.system:
+                    mode = ThemeMode.system;
+                    break;
+                }
+                themeModel.themeMode = mode;
               },
               style: SegmentedButton.styleFrom(
                 backgroundColor: Colors.grey[200],
                 selectedBackgroundColor: Colors.blue,
                 selectedForegroundColor: Colors.white,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundColorSection() {
+    final themeModel = context.watch<ThemeModel>();
+    final List<Color> presetColors = [
+      Colors.white,
+      Colors.black,
+      const Color(0xFF121212), // Dark Grey
+      Colors.blueGrey,
+      const Color(0xFFE0F7FA), // Cyan accent
+      const Color(0xFFFFF8E1), // Amber accent
+      const Color(0xFFF3E5F5), // Purple accent
+      const Color(0xFFE8F5E9), // Green accent
+      const Color(0xFF1A237E), // Deep Blue
+      const Color(0xFF311B92), // Deep Purple
+    ];
+
+    return Card(
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Background Color',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () {
+                    themeModel.resetBackgroundColor();
+                  },
+                  child: const Text('Reset'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: presetColors.map((color) {
+                final isSelected = themeModel.customBackgroundColor == color;
+                return GestureDetector(
+                  onTap: () {
+                    themeModel.customBackgroundColor = color;
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.grey.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: isSelected
+                        ? Icon(
+                            Icons.check,
+                            color: color.computeLuminance() > 0.5
+                                ? Colors.black
+                                : Colors.white,
+                          )
+                        : null,
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ),

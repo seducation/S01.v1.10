@@ -160,17 +160,15 @@ class _ShortsPageState extends State<ShortsPage> {
     _initializeState();
 
     if (widget.post.mediaUrls != null && widget.post.mediaUrls!.isNotEmpty) {
-      _controller =
-          VideoPlayerController.networkUrl(
-              Uri.parse(widget.post.mediaUrls!.first),
-            )
-            ..initialize().then((_) {
-              if (mounted) {
-                setState(() {});
-                _controller?.play();
-                _controller?.setLooping(true);
-              }
-            });
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.post.mediaUrls!.first),
+      )..initialize().then((_) {
+          if (mounted) {
+            setState(() {});
+            _controller?.play();
+            _controller?.setLooping(true);
+          }
+        });
     }
   }
 
@@ -227,11 +225,6 @@ class _ShortsPageState extends State<ShortsPage> {
     }
 
     try {
-      await _appwriteService.updatePostLikes(
-        widget.post.id,
-        newLikeCount,
-        widget.post.timestamp.toIso8601String(),
-      );
       await _prefs!.setBool(widget.post.id, newLikedState);
     } catch (e) {
       if (mounted) {
