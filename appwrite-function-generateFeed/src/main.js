@@ -8,6 +8,7 @@ const { getInterestBasedPosts } = require('./candidates/interestBased');
 const { getTrendingPosts } = require('./candidates/trending');
 const { getFreshPosts } = require('./candidates/fresh');
 const { getViralPosts, getExplorationPosts } = require('./candidates/exploration');
+const { getTVPosts } = require('./candidates/tvPosts');
 
 // Import algorithm modules
 const { rankPosts } = require('./algorithm/ranker');
@@ -210,15 +211,21 @@ module.exports = async ({ req, res, log, error }) => {
             log(`Selected ${ads.length} ads`);
         }
 
-        // Step 8: Get seen posts for deduplication
+        // Step 8: Fetch TV posts from followed TV profiles
+        log('Fetching TV posts...');
+        const tvPosts = await getTVPosts(databases, profileIds, 10);
+        log(`Found ${tvPosts.length} TV posts`);
+
+        // Step 9: Get seen posts for deduplication
         const seenPostIds = await getSeenPostIds(databases, ownerId, sessionId);
         log(`User has seen ${seenPostIds.size} posts recently`);
 
-        // Step 9: Mix feed (organic + ads + carousels)
+        // Step 10: Mix feed (organic + ads + TV posts + carousels)
         log('Mixing final feed...');
         const mixedFeed = await mixFeed(
             rankedPosts,
             ads,
+            tvPosts,
             databases,
             ownerId,
             sessionContext,

@@ -15,6 +15,9 @@ module.exports = {
         OWNER_SIGNALS: 'owner_signals', // Owner-level signals
         CAROUSEL_MEMORY: 'carousel_memory',
         SEEN_POSTS: 'seen_posts',
+        // TV Profile collections
+        TV_PROFILES: 'tv_profiles',
+        TV_POSTS: 'tv_posts',
     },
 
     // Candidate pool sizes
