@@ -1,40 +1,48 @@
-name: Build Flutter APK (DEBUG)
+name: Build Flutter Web
 
 on:
   push:
     branches: [ "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write   # REQUIRED for GitHub Pages deploy
+
 jobs:
-  build:
+  build-web:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
+      # 2️⃣ Setup Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.38.5"
           channel: stable
 
+      # 3️⃣ Flutter environment info
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Install dependencies
+      # 4️⃣ Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build Debug APK
-        run: flutter build apk --debug -v
+      # 5️⃣ Build Flutter Web (GitHub Pages compatible)
+      - name: Build Flutter Web
+        run: |
+          flutter clean
+          flutter build web \
+            --release \
+            --base-href "/${{ github.event.repository.name }}/"
 
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+      # 6️⃣ Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          name: app-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
