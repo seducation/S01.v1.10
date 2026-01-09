@@ -1,4 +1,4 @@
-name: Build Flutter Web
+name: Build Flutter APK (DEBUG)
 
 on:
   push:
@@ -6,11 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-web:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -18,17 +24,17 @@ jobs:
           flutter-version: "3.38.5"
           channel: stable
 
-      - name: Flutter info
+      - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Get dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Flutter Web
-        run: flutter build web --debug
+      - name: Build Debug APK
+        run: flutter build apk --debug -v
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/web
+          name: app-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
